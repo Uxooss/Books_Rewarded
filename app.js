@@ -3,6 +3,8 @@ const state = {
     currentRole: 'kid', // Kid view opens first by default
     parentPin: '1234',
     activeChildId: 'c1',
+    activeReadingBookId: null,
+    activeKidSubTab: 'shelf',
     newChildAvatarSeed: 'Polina',
     bookshelf: {
         searchQuery: '',
@@ -19,7 +21,18 @@ const state = {
             avatarSeed: 'Polina',
             avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Polina',
             balance: 450.00,
-            streak: 5
+            streak: 5,
+            achievements: {
+                record_reader: {
+                    id: 'record_reader',
+                    title: 'Супер-читач дня 🏆',
+                    description: 'Рекорд прочитаних сторінок за день!',
+                    unlocked: false,
+                    claimed: false,
+                    rewardCoins: 50,
+                    recordPages: 0
+                }
+            }
         }
     ],
     timer: {
@@ -126,7 +139,7 @@ const state = {
             },
             {
                 question: 'Що робив Король на своїй першій планеті?',
-                options: ['Срахував зірки', 'Правив усім і всіма', 'Запалював ліхтарі', 'Малював карти'],
+                options: ['Рахував зірки', 'Правив усім і всіма', 'Запалював ліхтарі', 'Малював карти'],
                 correctIndex: 1,
                 explanation: 'Король вважав, що віддає розумні накази всім у Всесвіті.'
             }
@@ -194,9 +207,13 @@ function calculateReadingReward(totalPages, rewardPerPage, dailyNorm) {
 }
 
 // INITIALIZATION
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        renderUI();
+    });
+} else {
     renderUI();
-});
+}
 
 // ACTIVE CHILD HELPER
 function getActiveChild() {
@@ -235,9 +252,9 @@ function renderUI() {
         document.getElementById('kidStreakCount').innerText = activeChild.streak;
 
         renderChildrenProfilesBar();
-        renderKidBookshelf();
-        renderKidActiveReading();
-        renderKidArchive();
+        initChildAchievements(activeChild);
+        checkChildAchievementUnlocks(activeChild);
+        showKidSubTab(state.activeKidSubTab || 'shelf');
     } else {
         kidView.classList.remove('active');
         parentView.classList.add('active');
@@ -298,17 +315,32 @@ function renderKidBookshelf() {
     const grid = document.getElementById('kidBookshelfGrid');
     const emptyBanner = document.getElementById('emptyShelfBanner');
     const emptyText = document.getElementById('emptyShelfText');
+    if (!grid) return;
+
     grid.innerHTML = '';
 
+    const searchInput = document.getElementById('shelfSearchInput');
+    const statusSelect = document.getElementById('shelfFilterStatus');
+    const sortSelect = document.getElementById('shelfSortBy');
+
+    if (searchInput) state.bookshelf.searchQuery = searchInput.value.trim().toLowerCase();
+    if (statusSelect) state.bookshelf.statusFilter = statusSelect.value || 'all';
+    if (sortSelect) state.bookshelf.sortBy = sortSelect.value || 'progress_desc';
+
+    const currentMode = state.bookshelf.viewMode || 'grid';
+
     // Apply View Mode CSS class
-    grid.className = `bookshelf-grid view-${state.bookshelf.viewMode}`;
+    grid.className = `bookshelf-grid view-${currentMode}`;
+
+    // Update View Mode Button Highlights
+    const btnGrid = document.getElementById('btnViewGrid');
+    const btnCompact = document.getElementById('btnViewCompact');
+    const btnList = document.getElementById('btnViewList');
+    if (btnGrid) btnGrid.classList.toggle('active', currentMode === 'grid');
+    if (btnCompact) btnCompact.classList.toggle('active', currentMode === 'compact');
+    if (btnList) btnList.classList.toggle('active', currentMode === 'list');
 
     let childBooks = state.books.filter(b => b.childId === state.activeChildId);
-
-    const searchInput = document.getElementById('shelfSearchInput');
-    if (searchInput) {
-        state.bookshelf.searchQuery = searchInput.value.trim().toLowerCase();
-    }
 
     // 1. Apply Search Query Filter (Title, Author or Synopsis)
     if (state.bookshelf.searchQuery) {
@@ -321,7 +353,7 @@ function renderKidBookshelf() {
     }
 
     // 2. Apply Status Filter
-    if (state.bookshelf.statusFilter !== 'all') {
+    if (state.bookshelf.statusFilter && state.bookshelf.statusFilter !== 'all') {
         childBooks = childBooks.filter(b => b.status === state.bookshelf.statusFilter);
     }
 
@@ -337,17 +369,19 @@ function renderKidBookshelf() {
     });
 
     if (childBooks.length === 0) {
-        emptyBanner.classList.remove('hidden');
-        if (state.bookshelf.searchQuery || state.bookshelf.statusFilter !== 'all') {
-            emptyText.innerText = 'За вашим запитом або фільтром книг не знайдено.';
-        } else {
-            emptyText.innerText = 'Додай свою першу книжку, щоб розпочати пригоду та отримати свої перші золоті монети!';
+        if (emptyBanner) emptyBanner.classList.remove('hidden');
+        if (emptyText) {
+            if (state.bookshelf.searchQuery || (state.bookshelf.statusFilter && state.bookshelf.statusFilter !== 'all')) {
+                emptyText.innerText = 'За вашим запитом або фільтром книг не знайдено.';
+            } else {
+                emptyText.innerText = 'Додай свою першу книжку, щоб розпочати пригоду та отримати свої перші золоті монети!';
+            }
         }
         grid.style.display = 'none';
         return;
     } else {
-        emptyBanner.classList.add('hidden');
-        grid.style.display = state.bookshelf.viewMode === 'list' ? 'flex' : 'grid';
+        if (emptyBanner) emptyBanner.classList.add('hidden');
+        grid.style.display = (currentMode === 'list') ? 'flex' : 'grid';
     }
 
     childBooks.forEach(book => {
@@ -431,6 +465,8 @@ function renderKidActiveReading(targetBook = null) {
     
     if (!activeBook) return;
 
+    state.activeReadingBookId = activeBook.id;
+
     document.getElementById('kidBookTitle').innerText = activeBook.title;
     document.getElementById('kidBookAuthor').innerText = activeBook.author;
     document.getElementById('kidBookSynopsis').innerText = activeBook.synopsis || 'Опис книги відсутній.';
@@ -453,6 +489,18 @@ function renderKidActiveReading(targetBook = null) {
     const isFinished = activeBook.currentPage >= activeBook.totalPages;
     const dailyLoggerBox = document.getElementById('dailyLoggerBox');
     const quizBanner = document.getElementById('kidQuizActionBanner');
+
+    const remainingPages = Math.max(0, activeBook.totalPages - activeBook.currentPage);
+    const pageSlider = document.getElementById('pageSlider');
+    const pageInputManual = document.getElementById('pageInputManual');
+
+    if (pageSlider && pageInputManual) {
+        pageSlider.max = Math.max(1, remainingPages);
+        pageInputManual.max = remainingPages;
+        const defaultLogged = Math.min(activeBook.dailyNorm || 20, remainingPages);
+        pageSlider.value = defaultLogged;
+        pageInputManual.value = defaultLogged;
+    }
 
     if (dailyLoggerBox) {
         dailyLoggerBox.classList.toggle('hidden', isFinished);
@@ -581,6 +629,8 @@ function renderParentArchive() {
 
 // KID SUBTAB ROUTING
 function showKidSubTab(tab) {
+    state.activeKidSubTab = tab;
+
     document.getElementById('tabBtnShelf').classList.toggle('active', tab === 'shelf');
     document.getElementById('tabBtnReading').classList.toggle('active', tab === 'reading');
     document.getElementById('tabBtnTimer').classList.toggle('active', tab === 'timer');
@@ -597,6 +647,10 @@ function showKidSubTab(tab) {
 
     document.getElementById('kidSubTabArchive').classList.toggle('active', tab === 'archive');
     document.getElementById('kidSubTabArchive').classList.toggle('hidden', tab !== 'archive');
+
+    if (tab === 'shelf') renderKidBookshelf();
+    if (tab === 'reading') renderKidActiveReading();
+    if (tab === 'archive') renderKidArchive();
 }
 
 // PARENT PIN SECURITY LOGIC
@@ -792,7 +846,8 @@ function saveNewChildProfile() {
         avatarSeed: state.newChildAvatarSeed,
         avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${state.newChildAvatarSeed}`,
         balance: 0.00,
-        streak: 1
+        streak: 1,
+        achievements: {}
     };
 
     state.children.push(newChild);
@@ -904,6 +959,62 @@ function recalculateParentTier() {
 // LOCAL CURATED BOOK CATALOG FOR INSTANT SEARCH (OFFLINE & FALLBACK SAFE)
 const LOCAL_BOOK_CATALOG = [
     {
+        title: 'Відьмак. Останнє бажання',
+        author: 'Анджей Сапковський',
+        pages: 288,
+        synopsis: '«Відьмак. Останнє бажання» — це перша книга та вступна збірка оповідань культового фентезійного циклу «Відьмак» польського письменника Анджея Сапковського. У ній розповідається про мандри біловолосого мутанта-мисливця на монстрів Ґеральта з Рівії.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Відьмак. Меч Призначення',
+        author: 'Анджей Сапковський',
+        pages: 384,
+        synopsis: 'Друга збірка оповідань фентезійного циклу про відьмака Ґеральта з Рівії. У цих історіях зав’язується долевий зв’язок Ґеральта з юною княжною Ціріллою та чарівницею Йеннефер.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Відьмак. Кров Ельфів',
+        author: 'Анджей Сапковський',
+        pages: 320,
+        synopsis: 'Перший повноцінний роман епічної саги «Відьмак». Світ занурюється у хаос війни, а Ґеральт береться захищати та навчати бойовому мистецтву дитину-призначення Цірі в гірській фортеці Каер Морхен.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Відьмак. Час погорди',
+        author: 'Анджей Сапковський',
+        pages: 320,
+        synopsis: 'Другий роман саги «Відьмак». Під час чарівницького з’їзду на острові Таннедд спалахує зрада, що розколює магів та розлучає Ґеральта, Йеннефер та Цірі.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Відьмак. Хрещення вогнем',
+        author: 'Анджей Сапковський',
+        pages: 384,
+        synopsis: 'Третій роман саги. Тяжко поранений Ґеральт збирає вірну компанію друзів (Любисток, Мільва, Кагір, Регіс) і вирушає у небезпечний похід через охоплені війною землі на пошуки Цірі.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Відьмак. Вежа Ластівки',
+        author: 'Анджей Сапковський',
+        pages: 480,
+        synopsis: 'Четвертий роман епічного фентезі. Поранена та переслідувана найманими вбивцями Цірі знаходить притулок у самітника Висоготи і готується зустріти свою долю біля загадкової Вежі Ластівки.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Відьмак. Володарка Озера',
+        author: 'Анджей Сапковський',
+        pages: 560,
+        synopsis: 'Кульмінаційний підсумковий роман фентезійної саги Анджея Сапковського. Цірі потрапляє у світ ельфів Aen Elle, а Ґеральт пробивається крізь шторм битв до замку Стигга.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Відьмак. Сезон гроз',
+        author: 'Анджей Сапковський',
+        pages: 352,
+        synopsis: 'Приквел-роман про нові пригоди відьмака Ґеральта з Рівії. У Ґеральта викрадають його славетні відьмацькі мечі, і він починає ризиковану місію з їх повернення.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
         title: 'Нові темні віки. Колонія',
         author: 'Макс Кідрук',
         pages: 904,
@@ -1010,6 +1121,37 @@ const LOCAL_BOOK_CATALOG = [
     }
 ];
 
+// HELPER: RICH SYNOPSIS RESOLVER
+function getRichBookSynopsis(title, author, rawDesc = '') {
+    if (!title) return '';
+    const cleanTitle = title.trim();
+    const cleanAuthor = author ? author.trim() : '';
+
+    // 1. Check LOCAL_BOOK_CATALOG first for exact or fuzzy title match!
+    const matchedCatalogItem = LOCAL_BOOK_CATALOG.find(b => {
+        const t1 = b.title.toLowerCase();
+        const t2 = cleanTitle.toLowerCase();
+        return t1.includes(t2) || t2.includes(t1);
+    });
+
+    if (matchedCatalogItem && matchedCatalogItem.synopsis) {
+        return matchedCatalogItem.synopsis;
+    }
+
+    // 2. If API provided a meaningful description, sanitize it
+    if (rawDesc && rawDesc.trim().length > 25 && !rawDesc.startsWith('Книга "')) {
+        let cleaned = rawDesc.replace(/<[^>]*>?/gm, '').trim();
+        if (cleaned.length > 380) cleaned = cleaned.substring(0, 377) + '...';
+        return cleaned;
+    }
+
+    // 3. Informative narrative summary generator
+    if (cleanAuthor && cleanAuthor !== 'Невідомий автор') {
+        return `«${cleanTitle}» — це захопливий твір автора ${cleanAuthor}, який занурює читача у яскравий світ пригод, цікавих персонажів та важливих життєвих історій.`;
+    }
+    return `«${cleanTitle}» — це захоплива книжкова пригода, яка розкриває цікавий сюжет та занурює у світ читання.`;
+}
+
 let globalSearchResultsList = [];
 
 async function searchGoogleBooks() {
@@ -1079,12 +1221,21 @@ async function searchGoogleBooks() {
                         ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
                         : 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80';
 
+                    let rawSynopsis = '';
+                    if (doc.first_sentence) {
+                        rawSynopsis = Array.isArray(doc.first_sentence) ? doc.first_sentence.join(' ') : String(doc.first_sentence);
+                    } else if (doc.subtitle) {
+                        rawSynopsis = doc.subtitle;
+                    }
+
+                    const synopsis = getRichBookSynopsis(title, author, rawSynopsis);
+
                     if (title && !globalSearchResultsList.some(item => item.title.toLowerCase() === title.toLowerCase())) {
                         globalSearchResultsList.push({
                             title,
                             author,
                             pages: pages || null,
-                            synopsis: `Книга "${title}" від автора ${author}.`,
+                            synopsis,
                             coverUrl,
                             source: 'Open Library',
                             editionKey
@@ -1113,12 +1264,15 @@ async function searchGoogleBooks() {
                     let coverUrl = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80';
                     if (coverUrl.startsWith('http:')) coverUrl = coverUrl.replace('http:', 'https:');
 
+                    const rawSynopsis = info.description || info.subtitle || '';
+                    const synopsis = getRichBookSynopsis(title, author, rawSynopsis);
+
                     if (title && !globalSearchResultsList.some(existing => existing.title.toLowerCase() === title.toLowerCase())) {
                         globalSearchResultsList.push({
                             title,
                             author,
                             pages,
-                            synopsis: info.description || (info.subtitle ? `${info.title} - ${info.subtitle}` : `Книга "${title}".`),
+                            synopsis,
                             coverUrl,
                             source: 'Google Books',
                             editionKey: null
@@ -1267,30 +1421,304 @@ function approveBookReward() {
 }
 
 // KID DAILY LOGGER
-function updateSliderValue(val) {
-    document.getElementById('sliderVal').innerText = val;
+let pendingDailyLogPages = 0;
+
+function getActiveReadingBook() {
+    if (state.activeReadingBookId) {
+        const book = state.books.find(b => b.id === state.activeReadingBookId);
+        if (book) return book;
+    }
+    return state.books.find(b => b.childId === state.activeChildId && (b.status === 'active' || b.status === 'quiz_pending')) || state.books.find(b => b.childId === state.activeChildId);
+}
+
+function onPageInputSlider(val) {
+    const manualInput = document.getElementById('pageInputManual');
+    if (manualInput) {
+        manualInput.value = val;
+    }
+}
+
+function onPageInputManual(val) {
+    const pages = parseInt(val) || 0;
+    const slider = document.getElementById('pageSlider');
+    if (slider) {
+        slider.value = Math.max(0, Math.min(parseInt(slider.max) || 1000, pages));
+    }
 }
 
 function adjustPages(delta) {
+    const manualInput = document.getElementById('pageInputManual');
     const slider = document.getElementById('pageSlider');
-    let newVal = parseInt(slider.value) + delta;
-    newVal = Math.max(0, Math.min(30, newVal));
-    slider.value = newVal;
-    updateSliderValue(newVal);
+    const activeBook = getActiveReadingBook();
+    const maxPages = activeBook ? Math.max(1, activeBook.totalPages - activeBook.currentPage) : 1000;
+
+    let currentVal = parseInt(manualInput ? manualInput.value : slider.value) || 0;
+    let newVal = currentVal + delta;
+    newVal = Math.max(0, Math.min(maxPages, newVal));
+
+    if (manualInput) manualInput.value = newVal;
+    if (slider) slider.value = newVal;
 }
 
 function logDailyPages() {
-    const pagesRead = parseInt(document.getElementById('pageSlider').value);
-    const activeBook = state.books.find(b => b.childId === state.activeChildId && b.status === 'active');
+    const manualInput = document.getElementById('pageInputManual');
+    const slider = document.getElementById('pageSlider');
+    const pagesRead = parseInt(manualInput ? manualInput.value : slider.value) || 0;
+
+    if (pagesRead <= 0) {
+        alert('Вкажіть хоча б 1 прочитану сторінку.');
+        return;
+    }
+
+    const activeBook = getActiveReadingBook();
+    if (!activeBook) return;
+
+    const dailyNorm = activeBook.dailyNorm || 12;
+
+    // If logged pages exceed the daily norm, trigger the Super Reading mini-modal!
+    if (pagesRead > dailyNorm) {
+        pendingDailyLogPages = pagesRead;
+        document.getElementById('superPagesCount').innerText = pagesRead;
+        document.getElementById('superDailyNorm').innerText = dailyNorm;
+        document.getElementById('superReadingConfirmModal').classList.add('active');
+    } else {
+        saveLoggedDailyPages(pagesRead, false);
+    }
+}
+
+function closeSuperReadingModal() {
+    document.getElementById('superReadingConfirmModal').classList.remove('active');
+}
+
+function confirmSuperReadingSave() {
+    closeSuperReadingModal();
+    saveLoggedDailyPages(pendingDailyLogPages, true);
+}
+
+function initChildAchievements(child) {
+    if (!child) return;
+    if (!child.achievements) child.achievements = {};
+
+    if (!child.achievements.record_reader) {
+        child.achievements.record_reader = {
+            id: 'record_reader',
+            title: 'Супер-читач дня 🏆',
+            description: 'Рекорд прочитаних сторінок за один день!',
+            icon: 'fa-trophy',
+            unlocked: false,
+            claimed: false,
+            rewardCoins: 50,
+            recordPages: 0
+        };
+    }
+    if (!child.achievements.book_worm) {
+        child.achievements.book_worm = {
+            id: 'book_worm',
+            title: 'Книжковий марафон 📚',
+            description: 'Прочитано 3 або більше книг в архіві',
+            icon: 'fa-book-open-reader',
+            unlocked: false,
+            claimed: false,
+            rewardCoins: 50
+        };
+    }
+    if (!child.achievements.speed_demon) {
+        child.achievements.speed_demon = {
+            id: 'speed_demon',
+            title: 'Майстер швидкості ⚡',
+            description: 'Швидкість читання понад 40 сторінок на годину',
+            icon: 'fa-bolt',
+            unlocked: false,
+            claimed: false,
+            rewardCoins: 50
+        };
+    }
+    if (!child.achievements.streak_master) {
+        child.achievements.streak_master = {
+            id: 'streak_master',
+            title: 'Володар Стріку 🔥',
+            description: 'Серія читання 5 або більше днів поспіль',
+            icon: 'fa-fire',
+            unlocked: false,
+            claimed: false,
+            rewardCoins: 50
+        };
+    }
+}
+
+function saveLoggedDailyPages(pagesRead, isSuperAchievement = false) {
+    const activeBook = getActiveReadingBook();
     if (!activeBook) return;
 
     activeBook.currentPage = Math.min(activeBook.totalPages, activeBook.currentPage + pagesRead);
+    
     if (activeBook.currentPage >= activeBook.totalPages) {
         activeBook.status = 'quiz_pending';
     }
 
-    renderUI();
-    alert(`Гарна робота! Збережено +${pagesRead} прочитаних сторінок! 🎉`);
+    const activeChild = getActiveChild();
+
+    if (isSuperAchievement) {
+        if (!activeChild.achievements) activeChild.achievements = {};
+        if (!activeChild.achievements.record_reader) {
+            activeChild.achievements.record_reader = {
+                id: 'record_reader',
+                title: 'Супер-читач дня 🏆',
+                description: 'Рекорд прочитаних сторінок за один день!',
+                icon: 'fa-trophy',
+                unlocked: false,
+                claimed: false,
+                rewardCoins: 50,
+                recordPages: 0
+            };
+        }
+
+        const ach = activeChild.achievements.record_reader;
+        ach.unlocked = true;
+        ach.rewardCoins = 50;
+        ach.recordPages = Math.max(ach.recordPages || 0, pagesRead);
+
+        state.notifications.unshift({
+            id: 'n' + Date.now(),
+            icon: 'fa-trophy',
+            title: '🏆 Нова ачівка розблокована!',
+            message: `${activeChild.name} прочитала рекордні +${pagesRead} сторінок за день! Розблоковано нагороду +50 монет у розділі ачівок!`,
+            time: 'Щойно',
+            unread: true
+        });
+
+        renderUI();
+
+        // Open Super Achievement Celebration Mini-Modal
+        const celebrationPages = document.getElementById('celebrationPagesCount');
+        if (celebrationPages) celebrationPages.innerText = pagesRead;
+        document.getElementById('superAchievementCelebrationModal').classList.add('active');
+    } else {
+        renderUI();
+        alert(`Чудова робота! Збережено +${pagesRead} прочитаних сторінок для книги "${activeBook.title}"! 📚✨`);
+    }
+}
+
+function closeSuperCelebrationModal() {
+    document.getElementById('superAchievementCelebrationModal').classList.remove('active');
+}
+
+function openClaimFromCelebration() {
+    closeSuperCelebrationModal();
+    openAchievementsModal();
+}
+
+function openAchievementsModal() {
+    renderAchievementsListGrid();
+    document.getElementById('achievementsModal').classList.add('active');
+}
+
+function closeAchievementsModal() {
+    document.getElementById('achievementsModal').classList.remove('active');
+}
+
+function checkChildAchievementUnlocks(child) {
+    if (!child || !child.achievements) return;
+
+    // Auto unlock book worm if >= 3 archived books
+    const archivedCount = state.books.filter(b => b.childId === child.id && (b.status === 'archived' || b.status === 'completed')).length;
+    if (archivedCount >= 3) {
+        child.achievements.book_worm.unlocked = true;
+    }
+
+    // Auto unlock streak master if streak >= 5
+    if ((child.streak || 0) >= 5) {
+        child.achievements.streak_master.unlocked = true;
+    }
+
+    // Toggle unclaimed red dot on header button
+    const hasUnclaimed = Object.values(child.achievements).some(a => a.unlocked && !a.claimed);
+    const dot = document.getElementById('unclaimedDot');
+    if (dot) {
+        dot.classList.toggle('hidden', !hasUnclaimed);
+    }
+}
+
+function renderAchievementsListGrid() {
+    const grid = document.getElementById('achievementsListGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const activeChild = getActiveChild();
+    if (!activeChild) return;
+
+    initChildAchievements(activeChild);
+    checkChildAchievementUnlocks(activeChild);
+
+    const achs = Object.values(activeChild.achievements);
+
+    achs.forEach(ach => {
+        const card = document.createElement('div');
+        let cardClass = 'achievement-card';
+        if (ach.claimed) cardClass += ' claimed';
+        else if (ach.unlocked) cardClass += ' unlocked';
+
+        card.className = cardClass;
+
+        let actionHtml = '';
+        if (ach.unlocked && !ach.claimed) {
+            actionHtml = `
+                <button class="btn btn-warning btn-sm pulse" onclick="claimAchievementReward('${ach.id}')" style="width: 100%; margin-top: 8px;">
+                    <i class="fa-solid fa-gift" aria-hidden="true"></i> Забрати +${ach.rewardCoins} Монет! 🎁
+                </button>
+            `;
+        } else if (ach.claimed) {
+            actionHtml = `
+                <div style="text-align: center; color: var(--emerald); font-weight: 700; font-size: 0.85rem; padding: 6px;">
+                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i> Винагороду +${ach.rewardCoins} монет отримано!
+                </div>
+            `;
+        } else {
+            actionHtml = `
+                <div style="text-align: center; color: #64748b; font-size: 0.82rem; padding: 6px;">
+                    <i class="fa-solid fa-lock" aria-hidden="true"></i> Не розблоковано
+                </div>
+            `;
+        }
+
+        card.innerHTML = `
+            <div class="achievement-card-header">
+                <div class="achievement-icon-box">
+                    <i class="fa-solid ${ach.icon || 'fa-trophy'}" aria-hidden="true"></i>
+                </div>
+                <div>
+                    <div class="achievement-card-title">${escapeHTML(ach.title)}</div>
+                    <div class="achievement-card-desc">${escapeHTML(ach.description)}</div>
+                </div>
+            </div>
+            ${actionHtml}
+        `;
+
+        grid.appendChild(card);
+    });
+}
+
+function claimAchievementReward(achievementId) {
+    const activeChild = getActiveChild();
+    if (!activeChild || !activeChild.achievements) return;
+
+    const ach = activeChild.achievements[achievementId];
+    if (ach && ach.unlocked && !ach.claimed) {
+        ach.claimed = true;
+        activeChild.balance += ach.rewardCoins;
+
+        state.notifications.unshift({
+            id: 'n' + Date.now(),
+            icon: 'fa-coins',
+            title: 'Винагороду за ачівку отримано! 💰',
+            message: `${activeChild.name} обміняла ачівку "${ach.title}" на +${ach.rewardCoins} монет!`,
+            time: 'Щойно',
+            unread: true
+        });
+
+        renderUI();
+        renderAchievementsListGrid();
+    }
 }
 
 // QUIZ RUNNER

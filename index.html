@@ -85,6 +85,10 @@
                         
                         <div class="hero-badges-row">
                             <div class="streak-badge"><i class="fa-solid fa-fire" aria-hidden="true"></i> <span id="kidStreakCount">5</span> Днів поспіль!</div>
+                            <button class="achievement-hero-btn" onclick="openAchievementsModal()" title="Моя колекція ачівок">
+                                <i class="fa-solid fa-trophy text-warning" aria-hidden="true"></i> Ачівки
+                                <span id="unclaimedDot" class="unclaimed-dot hidden"></span>
+                            </button>
                             <div class="coins-display">
                                 <i class="fa-solid fa-coins coin-icon" aria-hidden="true"></i>
                                 <span id="kidBalance">450.00</span> Монет
@@ -205,10 +209,12 @@
                         <div class="daily-logger-box" id="dailyLoggerBox">
                             <h3><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Скільки сторінок ти прочитала сьогодні?</h3>
                             <div class="slider-container">
-                                <button class="btn-circle" onclick="adjustPages(-5)" aria-label="Зменшити на 5"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
-                                <input type="range" id="pageSlider" min="0" max="30" value="30" oninput="updateSliderValue(this.value)" aria-label="Слайдер сторінок">
-                                <button class="btn-circle" onclick="adjustPages(5)" aria-label="Збільшити на 5"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
-                                <span class="slider-val-badge">+<span id="sliderVal">30</span> стор.</span>
+                                <button class="btn-circle" onclick="adjustPages(-1)" aria-label="Зменшити на 1 сторінку"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+                                <input type="range" id="pageSlider" min="0" max="100" value="12" oninput="onPageInputSlider(this.value)" aria-label="Слайдер сторінок">
+                                <button class="btn-circle" onclick="adjustPages(1)" aria-label="Збільшити на 1 сторінку"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+                                <span class="slider-val-badge">
+                                    +<input type="number" id="pageInputManual" value="12" min="0" oninput="onPageInputManual(this.value)" class="manual-page-input" aria-label="Ввести кількість сторінок вручну"> стор.
+                                </span>
                             </div>
                             <button class="btn btn-lg btn-accent" onclick="logDailyPages()">
                                 <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Зберегти сьогоднішній результат
@@ -584,6 +590,88 @@
             </div>
             <div class="modal-footer">
                 <button id="nextQuestionBtn" class="btn btn-primary btn-lg" onclick="nextQuestion()" disabled>Далі <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SUPER READING CONFIRMATION -->
+    <div id="superReadingConfirmModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'superReadingConfirmModal')">
+        <div class="modal-card modal-sm text-center">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-circle-question" style="color: var(--cyan);" aria-hidden="true"></i> Підтвердження результату</h3>
+                <button class="close-btn" onclick="closeSuperReadingModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="welcome-icon-glow" style="margin: 0 auto 16px; width: 64px; height: 64px; font-size: 1.8rem; border-color: var(--cyan); color: var(--cyan); background: rgba(6, 182, 212, 0.15);">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+                <h3 style="font-family: var(--font-heading); color: #fff; margin-bottom: 10px;">Перевірка кількості сторінок</h3>
+                <p style="font-size: 1.05rem; color: #f8fafc; line-height: 1.5; margin-bottom: 12px;">
+                    Справді було прочитано аж <strong class="text-success" style="font-size: 1.2rem;">+<span id="superPagesCount">50</span> сторінок</strong> за сьогодні?
+                </p>
+                <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">
+                    (Щоденна норма цієї книги: <strong><span id="superDailyNorm">12</span> стор.</strong>)
+                </p>
+            </div>
+            <div class="modal-footer" style="justify-content: center; gap: 10px;">
+                <button class="btn btn-outline" onclick="closeSuperReadingModal()">Виправити кількість</button>
+                <button class="btn btn-warning btn-lg pulse" onclick="confirmSuperReadingSave()">
+                    <i class="fa-solid fa-check"></i> Так, це правда! 🔥
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SUPER ACHIEVEMENT CELEBRATION -->
+    <div id="superAchievementCelebrationModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'superAchievementCelebrationModal')">
+        <div class="modal-card modal-sm text-center">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-trophy" style="color: var(--gold);" aria-hidden="true"></i> Неймовірний успіх!</h3>
+                <button class="close-btn" onclick="closeSuperCelebrationModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="welcome-icon-glow" style="margin: 0 auto 16px; width: 72px; height: 72px; font-size: 2.2rem; border-color: var(--gold); color: var(--gold); background: rgba(251, 191, 36, 0.15); animation: pulse 1.5s infinite;">
+                    <i class="fa-solid fa-medal"></i>
+                </div>
+                <h3 style="font-family: var(--font-heading); color: var(--gold); margin-bottom: 8px;">Вітаємо з рекордом! 🚀✨</h3>
+                <p style="font-size: 1rem; color: #f8fafc; line-height: 1.4; margin-bottom: 14px;">
+                    Ти прочитала аж <strong class="text-success" style="font-size: 1.15rem;">+<span id="celebrationPagesCount">50</span> сторінок</strong> за сьогодні!
+                </p>
+                <div class="calc-preview-card" style="background: rgba(251, 191, 36, 0.12); border: 2px solid var(--gold); padding: 14px; margin-top: 0;">
+                    <p style="font-size: 0.9rem; color: var(--gold); margin: 0 0 6px; font-weight: 700;">
+                        🏆 Розблоковано ачівку: "Супер-читач дня"!
+                    </p>
+                    <p style="font-size: 0.85rem; color: #cbd5e1; margin: 0;">
+                        Тобі доступна винагорода: <strong>+50 золотих монет</strong> у розділі ачівок! 🪙
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: center; gap: 10px;">
+                <button class="btn btn-outline" onclick="closeSuperCelebrationModal()">Чудово!</button>
+                <button class="btn btn-warning btn-lg pulse" onclick="openClaimFromCelebration()">
+                    <i class="fa-solid fa-gift"></i> Забрати +50 монет! 🎁
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ACHIEVEMENTS COLLECTION & MONETIZATION -->
+    <div id="achievementsModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'achievementsModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-trophy" style="color: var(--gold);" aria-hidden="true"></i> Мої Ачівки та Нагороди</h3>
+                <button class="close-btn" onclick="closeAchievementsModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="calc-preview-card" style="background: rgba(15, 23, 42, 0.6); padding: 12px; margin-bottom: 20px; text-align: center;">
+                    <span style="color: #94a3b8; font-size: 0.9rem;">Читай книги, встановлюй рекорди та міняй ачівки на золоті монети! 🪙</span>
+                </div>
+                <div id="achievementsListGrid" class="achievements-grid">
+                    <!-- Dynamic Achievement Cards -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeAchievementsModal()">Закрити</button>
             </div>
         </div>
     </div>
