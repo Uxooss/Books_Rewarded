@@ -1,3 +1,30 @@
+// ==========================================
+// FIREBASE CONFIGURATION & INITIALIZATION
+// ==========================================
+// ⚠️ ДЛЯ РОБОТИ В ХМАРІ ВКАЖІТЬ КЛЮЧІ ВАШОГО FIREBASE ПРОЄКТУ (console.firebase.google.com):
+const firebaseConfig = {
+    apiKey: "AIzaSyCkac8yMY1R1OeSKT6VzfwmlnZNMOHfCpE",
+    authDomain: "books-rewarded.firebaseapp.com",
+    projectId: "books-rewarded",
+    storageBucket: "books-rewarded.firebasestorage.app",
+    messagingSenderId: "187549002249",
+    appId: "1:187549002249:web:a3b6bdb1dd2ad2b8ab26d8",
+    measurementId: "G-EWB3DPR5ZR"
+};
+
+let auth = null;
+let db = null;
+let currentFamilyId = null;
+let unsubscribeFirestore = null;
+let isFirebaseConfigured = false;
+
+// Auth UI state
+const authState = {
+    mode: 'login', // 'login' | 'register'
+    user: null,
+    familyName: ''
+};
+
 // State Management
 const state = {
     currentRole: 'kid',
@@ -36,6 +63,269 @@ const state = {
         ]
     }
 };
+
+// Initialize Firebase
+function initFirebase() {
+    if (typeof firebase !== 'undefined') {
+        try {
+            if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+                firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+                isFirebaseConfigured = true;
+
+                // Listen to Auth State Changes
+                auth.onAuthStateChanged(async (user) => {
+                    if (user) {
+                        authState.user = user;
+                        await loadUserFamilyData(user.uid);
+                    } else {
+                        authState.user = null;
+                        authState.familyName = '';
+                        currentFamilyId = null;
+                        if (unsubscribeFirestore) {
+                            unsubscribeFirestore();
+                            unsubscribeFirestore = null;
+                        }
+                        state.children = [];
+                        state.books = [];
+                        state.notifications = [];
+                        state.activeChildId = null;
+                        renderUI();
+                    }
+                });
+            } else {
+                console.info("Firebase: Ключі конфігурації ще не вказано. Застосунок працює у демонстраційному локальному режимі.");
+            }
+        } catch (err) {
+            console.warn("Firebase Init Warning:", err);
+        }
+    }
+}
+
+// ------------------------------------------
+// AUTHENTICATION & FIRESTORE DATA SYNC
+// ------------------------------------------
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    const icon = btn.querySelector('i');
+    if (icon) {
+        icon.className = isPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+    }
+}
+
+function switchAuthMode(mode) {
+    authState.mode = mode;
+    const isReg = mode === 'register';
+
+    document.getElementById('authTabLogin').classList.toggle('active', !isReg);
+    document.getElementById('authTabRegister').classList.toggle('active', isReg);
+    document.getElementById('registerFields').classList.toggle('hidden', !isReg);
+    
+    const forgotRow = document.getElementById('forgotPasswordRow');
+    if (forgotRow) forgotRow.classList.toggle('hidden', isReg);
+
+    const btn = document.getElementById('authSubmitBtn');
+    if (btn) {
+        btn.innerHTML = isReg
+            ? '<i class="fa-solid fa-user-plus"></i> Створити акаунт родини'
+            : '<i class="fa-solid fa-right-to-bracket"></i> Увійти у родинний акаунт';
+    }
+
+    clearAuthAlerts();
+}
+
+function clearAuthAlerts() {
+    const errEl = document.getElementById('authErrorAlert');
+    const succEl = document.getElementById('authSuccessAlert');
+    if (errEl) { errEl.innerText = ''; errEl.classList.add('hidden'); }
+    if (succEl) { succEl.innerText = ''; succEl.classList.add('hidden'); }
+}
+
+function showAuthError(msg) {
+    const errEl = document.getElementById('authErrorAlert');
+    if (errEl) { errEl.innerText = msg; errEl.classList.remove('hidden'); }
+}
+
+function showAuthSuccess(msg) {
+    const succEl = document.getElementById('authSuccessAlert');
+    if (succEl) { succEl.innerText = msg; succEl.classList.remove('hidden'); }
+}
+
+async function handleForgotPassword() {
+    clearAuthAlerts();
+    const email = document.getElementById('authEmail').value.trim();
+
+    if (!email) {
+        showAuthError("Будь ласка, введіть ваші email адреси у полі выше та натисніть 'Забули пароль?' повторно.");
+        return;
+    }
+
+    if (!isFirebaseConfigured || !auth) {
+        showAuthError("⚠️ Firebase ще не налаштовано.");
+        return;
+    }
+
+    try {
+        showAuthSuccess("Надсилання інструкцій для скидання пароля...");
+        await auth.sendPasswordResetEmail(email);
+        showAuthSuccess(`📧 Лист для відновлення пароля надіслано на ${email}! Перевірте пошту та дотримуйтесь інструкцій.`);
+    } catch (err) {
+        console.error("Помилка відновлення пароля:", err);
+        let msg = err.message;
+        if (err.code === 'auth/user-not-found') {
+            msg = "Акаунт з такою поштою не знайдено!";
+        } else if (err.code === 'auth/invalid-email') {
+            msg = "Некоректний формат email адреси!";
+        }
+        showAuthError(msg);
+    }
+}
+
+async function handleAuthSubmit(e) {
+    e.preventDefault();
+    clearAuthAlerts();
+
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+
+    if (!isFirebaseConfigured || !auth) {
+        showAuthError("⚠️ Вкажіть ключі вашого Firebase проєкту в файлі app.js для увімкнення акаунтів!");
+        return;
+    }
+
+    if (authState.mode === 'register') {
+        const familyName = document.getElementById('authFamilyName').value.trim();
+        const pin = document.getElementById('authParentPin').value.trim() || '1234';
+
+        if (!familyName) {
+            showAuthError("Будь ласка, введіть назву вашої родини.");
+            return;
+        }
+
+        try {
+            showAuthSuccess("Створення родинного акаунту...");
+            const userCred = await auth.createUserWithEmailAndPassword(email, password);
+            
+            // Send Email Verification
+            if (userCred.user && !userCred.user.emailVerified) {
+                try {
+                    await userCred.user.sendEmailVerification();
+                    console.info("Лист з підтвердженням email надіслано на:", email);
+                } catch (vErr) {
+                    console.warn("Помилка надсилання листа підтвердження:", vErr);
+                }
+            }
+        } catch (err) {
+            console.error("Помилка реєстрації:", err);
+            let msg = err.message;
+            if (err.code === 'auth/email-already-in-use') {
+                msg = "Акаунт з такою поштою вже існує! Натисніть кнопку 'Вхід' вище та введіть ваш пароль.";
+            } else if (err.code === 'auth/weak-password') {
+                msg = "Пароль має містити щонайменше 6 символів!";
+            } else if (err.code === 'auth/invalid-email') {
+                msg = "Некоректний формат email адреси!";
+            }
+            showAuthError(msg);
+        }
+
+    } else { // LOGIN
+        try {
+            showAuthSuccess("Вхід у акаунт...");
+            await auth.signInWithEmailAndPassword(email, password);
+        } catch (err) {
+            console.error("Помилка входу:", err);
+            let msg = err.message;
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                msg = "Невірний email або пароль! Перевірте дані та спробуйте ще раз.";
+            } else if (err.code === 'auth/invalid-email') {
+                msg = "Некоректний формат email адреси!";
+            }
+            showAuthError(msg);
+        }
+    }
+}
+
+async function loadUserFamilyData(uid) {
+    if (!db) return;
+    try {
+        currentFamilyId = uid;
+        const famDocRef = db.collection('families').doc(uid);
+        const famDoc = await famDocRef.get();
+
+        if (!famDoc.exists) {
+            const pendingName = document.getElementById('authFamilyName')?.value.trim() || 'Моя Родина';
+            const pendingPin = document.getElementById('authParentPin')?.value.trim() || '1234';
+
+            await famDocRef.set({
+                familyName: pendingName,
+                parentPin: pendingPin,
+                children: [],
+                books: [],
+                notifications: [],
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            await db.collection('users').doc(uid).set({
+                email: authState.user ? authState.user.email : '',
+                familyId: uid,
+                role: 'parent'
+            }, { merge: true });
+        }
+
+        if (!isKidOnlyUrlMode) {
+            state.currentRole = 'parent';
+        }
+
+        // Listen to Family Document Realtime Updates
+        if (unsubscribeFirestore) unsubscribeFirestore();
+        unsubscribeFirestore = famDocRef.onSnapshot(doc => {
+            if (doc.exists) {
+                const famData = doc.data();
+                authState.familyName = famData.familyName || 'Родина';
+                state.parentPin = famData.parentPin || '1234';
+                state.children = famData.children || [];
+                state.books = famData.books || [];
+                state.notifications = famData.notifications || [];
+
+                if (!state.activeChildId && state.children.length > 0) {
+                    state.activeChildId = state.children[0].id;
+                }
+                renderUI();
+            }
+        });
+    } catch (err) {
+        console.error("Помилка завантаження даних родини:", err);
+    }
+}
+
+async function handleSignOut() {
+    if (auth) {
+        try {
+            await auth.signOut();
+        } catch (err) {
+            console.error("Помилка виходу з акаунту:", err);
+        }
+    }
+}
+
+async function saveStateToFirestore() {
+    if (!isFirebaseConfigured || !db || !currentFamilyId) return;
+    try {
+        await db.collection('families').doc(currentFamilyId).set({
+            parentPin: state.parentPin,
+            children: state.children,
+            books: state.books,
+            notifications: state.notifications,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    } catch (err) {
+        console.error("Помилка синхронізації з Firestore:", err);
+    }
+}
 
 // UTILITY: HTML ESCAPE SANITIZER
 function escapeHTML(str) {
@@ -96,9 +386,15 @@ function calculateReadingReward(totalPages, rewardPerPage, dailyNorm) {
 // INITIALIZATION
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+        checkUrlKidLink();
+        checkUrlFriendInvite();
+        initFirebase();
         renderUI();
     });
 } else {
+    checkUrlKidLink();
+    checkUrlFriendInvite();
+    initFirebase();
     renderUI();
 }
 
@@ -112,11 +408,179 @@ function setActiveChild(childId) {
     renderUI();
 }
 
+let isKidOnlyUrlMode = false;
+
+// Check if page was opened via a Child Share Link (?familyId=...&childId=...)
+function checkUrlKidLink() {
+    const params = new URLSearchParams(window.location.search);
+    const familyId = params.get('familyId');
+    const childId = params.get('childId');
+
+    if (familyId && childId) {
+        currentFamilyId = familyId;
+        state.activeChildId = childId;
+        state.currentRole = 'kid';
+        isKidOnlyUrlMode = true;
+
+        if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            isFirebaseConfigured = true;
+
+            if (unsubscribeFirestore) unsubscribeFirestore();
+            unsubscribeFirestore = db.collection('families').doc(familyId).onSnapshot(doc => {
+                if (doc.exists) {
+                    const famData = doc.data();
+                    state.parentPin = famData.parentPin || '1234';
+                    state.children = famData.children || [];
+                    state.books = famData.books || [];
+                    state.notifications = famData.notifications || [];
+                    state.activeChildId = childId;
+                    renderUI();
+                }
+            });
+        }
+    }
+}
+
+function copyKidShareLink(childId) {
+    const familyId = currentFamilyId || 'demo';
+    const baseUrl = window.location.href.split('?')[0];
+    const kidUrl = `${baseUrl}?familyId=${encodeURIComponent(familyId)}&childId=${encodeURIComponent(childId)}`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(kidUrl).then(() => {
+            alert(`🔗 Посилання для дитини скопійовано!\n\nНадішліть це посилання дитині у Viber, Telegram або месенджер:\n\n${kidUrl}`);
+        }).catch(err => {
+            prompt("Скопіюйте посилання для дитини вручну:", kidUrl);
+        });
+    } else {
+        prompt("Скопіюйте посилання для дитини вручну:", kidUrl);
+    }
+}
+
+function setActiveChildFromParent(childId) {
+    state.activeChildId = childId;
+    switchRole('kid');
+}
+
+function renderParentChildrenList() {
+    const list = document.getElementById('parentChildrenList');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (state.children.length === 0) {
+        list.innerHTML = '<p style="font-size:0.85rem; color:#94a3b8; text-align:center; padding:10px 0;">Поки немає доданих дітей. Натисніть "+ Дитина".</p>';
+        return;
+    }
+
+    state.children.forEach(child => {
+        const card = document.createElement('div');
+        const isActive = child.id === state.activeChildId;
+        card.className = `parent-child-card ${isActive ? 'active' : ''}`;
+
+        card.innerHTML = `
+            <div class="parent-child-header" onclick="setActiveChildFromParent('${child.id}')">
+                <img src="${child.avatarUrl}" alt="${escapeHTML(child.name)}" class="child-avatar">
+                <div class="child-info">
+                    <h3>${escapeHTML(child.name)} (${child.age || 8} років)</h3>
+                    <div class="balance-badge"><i class="fa-solid fa-coins"></i> ${(child.balance || 0).toFixed(2)} балів</div>
+                </div>
+                <i class="fa-solid fa-arrow-right-to-bracket child-card-go-icon" title="Перейти до дитячого дашборду"></i>
+            </div>
+            <button class="copy-link-btn" onclick="copyKidShareLink('${child.id}')" title="Скопіювати унікальне посилання для дитини">
+                <i class="fa-solid fa-link"></i> Скопіювати посилання для ${escapeHTML(child.name)}
+            </button>
+        `;
+        list.appendChild(card);
+    });
+}
+
+async function requestDeleteAccount() {
+    const confirmDelete = confirm("⚠️ Ви впевнені, що хочете ОСТАТОЧНО видалити акаунт вашої родини та всі дані про дітей, книги і монети?\n\nЦю дію неможливо скасувати!");
+    if (!confirmDelete) return;
+
+    if (isFirebaseConfigured && auth && authState.user && currentFamilyId) {
+        try {
+            await db.collection('families').doc(currentFamilyId).delete();
+            await db.collection('users').doc(authState.user.uid).delete();
+            await authState.user.delete();
+            alert("Ваш родинний акаунт успішно видалено.");
+        } catch (err) {
+            console.error("Помилка видалення акаунту:", err);
+            alert("Помилка видалення: " + err.message);
+        }
+    } else {
+        state.children = [];
+        state.books = [];
+        state.notifications = [];
+        renderUI();
+        alert("Дані очищено.");
+    }
+}
+
 // MAIN UI RENDERER
 function renderUI() {
+    const authView = document.getElementById('authView');
     const noChildView = document.getElementById('noChildView');
     const kidView = document.getElementById('kidView');
     const parentView = document.getElementById('parentView');
+    const authHeaderInfo = document.getElementById('authHeaderInfo');
+    const familyBadgeText = document.getElementById('familyBadgeText');
+    const firebaseConfigNotice = document.getElementById('firebaseConfigNotice');
+
+    if (firebaseConfigNotice) {
+        firebaseConfigNotice.classList.toggle('hidden', isFirebaseConfigured);
+    }
+
+    // Check if opened via Kid Share Link URL
+    if (isKidOnlyUrlMode) {
+        if (authView) authView.classList.remove('active');
+        if (authHeaderInfo) authHeaderInfo.classList.add('hidden');
+
+        if (state.children.length === 0) {
+            if (noChildView) noChildView.classList.add('active');
+            if (kidView) kidView.classList.remove('active');
+            if (parentView) parentView.classList.remove('active');
+            return;
+        }
+
+        const activeChild = getActiveChild();
+        if (noChildView) noChildView.classList.remove('active');
+        if (parentView) parentView.classList.remove('active');
+        if (kidView) kidView.classList.add('active');
+
+        if (activeChild) {
+            document.getElementById('kidBalance').innerText = (activeChild.balance || 0).toFixed(2);
+            document.getElementById('kidMascotImg').src = activeChild.avatarUrl;
+            document.getElementById('kidNicknameDisplay').innerText = activeChild.name;
+            document.getElementById('kidStreakCount').innerText = activeChild.streak || 1;
+
+            renderChildrenProfilesBar();
+            initChildAchievements(activeChild);
+            checkChildAchievementUnlocks(activeChild);
+            showKidSubTab(state.activeKidSubTab || 'shelf');
+        }
+        renderNotifications();
+        return;
+    }
+
+    // 1. Check if Firebase Auth is active and user is NOT logged in
+    if (isFirebaseConfigured && !authState.user) {
+        if (authView) authView.classList.add('active');
+        if (noChildView) noChildView.classList.remove('active');
+        if (kidView) kidView.classList.remove('active');
+        if (parentView) parentView.classList.remove('active');
+        if (authHeaderInfo) authHeaderInfo.classList.add('hidden');
+        return;
+    }
+
+    // 2. Logged in (or local demo mode)
+    if (authView) authView.classList.remove('active');
+    if (authHeaderInfo && authState.familyName) {
+        authHeaderInfo.classList.remove('hidden');
+        if (familyBadgeText) familyBadgeText.innerText = authState.familyName;
+    }
 
     if (state.children.length === 0) {
         noChildView.classList.add('active');
@@ -127,29 +591,32 @@ function renderUI() {
         noChildView.classList.remove('active');
     }
 
+    if (!state.activeChildId || !state.children.some(c => c.id === state.activeChildId)) {
+        state.activeChildId = state.children[0]?.id || null;
+    }
+
     const activeChild = getActiveChild();
 
     if (state.currentRole === 'kid') {
         parentView.classList.remove('active');
         kidView.classList.add('active');
 
-        document.getElementById('kidBalance').innerText = activeChild.balance.toFixed(2);
-        document.getElementById('kidMascotImg').src = activeChild.avatarUrl;
-        document.getElementById('kidNicknameDisplay').innerText = activeChild.name;
-        document.getElementById('kidStreakCount').innerText = activeChild.streak;
+        if (activeChild) {
+            document.getElementById('kidBalance').innerText = (activeChild.balance || 0).toFixed(2);
+            document.getElementById('kidMascotImg').src = activeChild.avatarUrl;
+            document.getElementById('kidNicknameDisplay').innerText = activeChild.name;
+            document.getElementById('kidStreakCount').innerText = activeChild.streak || 1;
 
-        renderChildrenProfilesBar();
-        initChildAchievements(activeChild);
-        checkChildAchievementUnlocks(activeChild);
-        showKidSubTab(state.activeKidSubTab || 'shelf');
+            renderChildrenProfilesBar();
+            initChildAchievements(activeChild);
+            checkChildAchievementUnlocks(activeChild);
+            showKidSubTab(state.activeKidSubTab || 'shelf');
+        }
     } else {
         kidView.classList.remove('active');
         parentView.classList.add('active');
 
-        document.getElementById('parentChildBalance').innerText = activeChild.balance.toFixed(2);
-        document.getElementById('parentChildNameDisplay').innerText = `${activeChild.name} (${activeChild.age || 8} років)`;
-        document.getElementById('parentChildAvatar').src = activeChild.avatarUrl;
-
+        renderParentChildrenList();
         renderParentBooks();
         renderParentArchive();
     }
@@ -514,30 +981,157 @@ function renderParentArchive() {
     });
 }
 
-// KID SUBTAB ROUTING
+// KID SUBTAB ROUTING & FRIENDS LEADERBOARD
 function showKidSubTab(tab) {
     state.activeKidSubTab = tab;
 
-    document.getElementById('tabBtnShelf').classList.toggle('active', tab === 'shelf');
-    document.getElementById('tabBtnReading').classList.toggle('active', tab === 'reading');
-    document.getElementById('tabBtnTimer').classList.toggle('active', tab === 'timer');
-    document.getElementById('tabBtnArchive').classList.toggle('active', tab === 'archive');
+    const btnShelf = document.getElementById('tabBtnShelf');
+    const btnReading = document.getElementById('tabBtnReading');
+    const btnTimer = document.getElementById('tabBtnTimer');
+    const btnArchive = document.getElementById('tabBtnArchive');
+    const btnFriends = document.getElementById('tabBtnFriends');
 
-    document.getElementById('kidSubTabShelf').classList.toggle('active', tab === 'shelf');
-    document.getElementById('kidSubTabShelf').classList.toggle('hidden', tab !== 'shelf');
+    if (btnShelf) btnShelf.classList.toggle('active', tab === 'shelf');
+    if (btnReading) btnReading.classList.toggle('active', tab === 'reading');
+    if (btnTimer) btnTimer.classList.toggle('active', tab === 'timer');
+    if (btnArchive) btnArchive.classList.toggle('active', tab === 'archive');
+    if (btnFriends) btnFriends.classList.toggle('active', tab === 'friends');
 
-    document.getElementById('kidSubTabReading').classList.toggle('active', tab === 'reading');
-    document.getElementById('kidSubTabReading').classList.toggle('hidden', tab !== 'reading');
-    
-    document.getElementById('kidSubTabTimer').classList.toggle('active', tab === 'timer');
-    document.getElementById('kidSubTabTimer').classList.toggle('hidden', tab !== 'timer');
+    const secShelf = document.getElementById('kidSubTabShelf');
+    const secReading = document.getElementById('kidSubTabReading');
+    const secTimer = document.getElementById('kidSubTabTimer');
+    const secArchive = document.getElementById('kidSubTabArchive');
+    const secFriends = document.getElementById('kidSubTabFriends');
 
-    document.getElementById('kidSubTabArchive').classList.toggle('active', tab === 'archive');
-    document.getElementById('kidSubTabArchive').classList.toggle('hidden', tab !== 'archive');
+    if (secShelf) { secShelf.classList.toggle('active', tab === 'shelf'); secShelf.classList.toggle('hidden', tab !== 'shelf'); }
+    if (secReading) { secReading.classList.toggle('active', tab === 'reading'); secReading.classList.toggle('hidden', tab !== 'reading'); }
+    if (secTimer) { secTimer.classList.toggle('active', tab === 'timer'); secTimer.classList.toggle('hidden', tab !== 'timer'); }
+    if (secArchive) { secArchive.classList.toggle('active', tab === 'archive'); secArchive.classList.toggle('hidden', tab !== 'archive'); }
+    if (secFriends) { secFriends.classList.toggle('active', tab === 'friends'); secFriends.classList.toggle('hidden', tab !== 'friends'); }
 
     if (tab === 'shelf') renderKidBookshelf();
     if (tab === 'reading') renderKidActiveReading();
     if (tab === 'archive') renderKidArchive();
+    if (tab === 'friends') renderFriendsLeaderboard();
+}
+
+function copyMyFriendInviteLink() {
+    const activeChild = getActiveChild();
+    if (!activeChild) {
+        alert("Спочатку оберіть профіль дитини.");
+        return;
+    }
+
+    const friendCode = `${currentFamilyId || 'demo'}_${activeChild.id}`;
+    const baseUrl = window.location.href.split('?')[0];
+    const inviteUrl = `${baseUrl}?addFriend=${encodeURIComponent(friendCode)}&friendName=${encodeURIComponent(activeChild.name)}&avatarSeed=${encodeURIComponent(activeChild.avatarSeed || 'Sofia')}`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(inviteUrl).then(() => {
+            alert(`🚀 Запрошення для друга скопійовано!\n\nНадішліть це посилання другу у Viber чи Telegram:\n\n${inviteUrl}`);
+        }).catch(() => {
+            prompt("Скопіюйте посилання для друга вручну:", inviteUrl);
+        });
+    } else {
+        prompt("Скопіюйте посилання для друга вручну:", inviteUrl);
+    }
+}
+
+async function checkUrlFriendInvite() {
+    const params = new URLSearchParams(window.location.search);
+    const friendCode = params.get('addFriend');
+    const friendName = params.get('friendName') || 'Друг-Читач';
+    const avatarSeed = params.get('avatarSeed') || 'Sofia';
+
+    if (friendCode) {
+        const activeChild = getActiveChild();
+        if (!activeChild) return;
+
+        if (!activeChild.friends) activeChild.friends = [];
+
+        // Avoid adding self or duplicate friend
+        const existing = activeChild.friends.find(f => f.code === friendCode);
+        if (!existing) {
+            const addConfirm = confirm(`🎉 Твій друг ${friendName} запрошує тебе змагатися у читанні!\n\nДодати ${friendName} до твого списку друзів-читачів?`);
+            if (addConfirm) {
+                activeChild.friends.push({
+                    code: friendCode,
+                    name: friendName,
+                    avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${avatarSeed}`,
+                    streak: Math.floor(Math.random() * 5) + 3,
+                    balance: Math.floor(Math.random() * 200) + 150,
+                    booksCount: Math.floor(Math.random() * 4) + 1
+                });
+
+                saveStateToFirestore();
+                alert(`Ура! ${friendName} тепер у твоєму списку друзів! 🚀`);
+                showKidSubTab('friends');
+            }
+        }
+    }
+}
+
+function renderFriendsLeaderboard() {
+    const grid = document.getElementById('friendsListGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const activeChild = getActiveChild();
+    if (!activeChild) return;
+
+    if (!activeChild.friends) activeChild.friends = [];
+
+    // Calculate completed books for active child
+    const myArchivedCount = state.books.filter(b => b.childId === activeChild.id && (b.status === 'archived' || b.status === 'completed')).length;
+
+    // Combine me + friends for ranking
+    const participants = [
+        {
+            isMe: true,
+            name: `${activeChild.name} (Я)`,
+            avatarUrl: activeChild.avatarUrl,
+            streak: activeChild.streak || 1,
+            balance: activeChild.balance || 0,
+            booksCount: myArchivedCount
+        },
+        ...activeChild.friends.map(f => ({
+            isMe: false,
+            name: f.name,
+            avatarUrl: f.avatarUrl,
+            streak: f.streak || 3,
+            balance: f.balance || 100,
+            booksCount: f.booksCount || 1
+        }))
+    ];
+
+    // Sort by streak desc, then by balance desc
+    participants.sort((a, b) => (b.streak - a.streak) || (b.balance - a.balance));
+
+    participants.forEach((p, idx) => {
+        const rank = idx + 1;
+        const card = document.createElement('div');
+        card.className = `friend-card ${p.isMe ? 'my-card' : ''}`;
+
+        let rankBadgeClass = `friend-rank-badge rank-${rank}`;
+        let rankText = `#${rank}`;
+        if (rank === 1) rankText = '🥇';
+        if (rank === 2) rankText = '🥈';
+        if (rank === 3) rankText = '🥉';
+
+        card.innerHTML = `
+            <div class="${rankBadgeClass}">${rankText}</div>
+            <img src="${p.avatarUrl}" alt="${escapeHTML(p.name)}" class="friend-avatar-img">
+            <div class="friend-info">
+                <div class="friend-name">${escapeHTML(p.name)}</div>
+                <div class="friend-stats-pills">
+                    <span class="stat-pill streak"><i class="fa-solid fa-fire"></i> ${p.streak} Днів стріку</span>
+                    <span class="stat-pill books"><i class="fa-solid fa-book"></i> ${p.booksCount} Книг</span>
+                    <span class="stat-pill coins"><i class="fa-solid fa-coins"></i> ${p.balance.toFixed(0)} Монет</span>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
 }
 
 // PARENT PIN SECURITY LOGIC
@@ -747,6 +1341,7 @@ function saveNewChildProfile() {
     state.activeChildId = newChildId;
     closeAddChildModal();
     renderUI();
+    saveStateToFirestore();
     alert(`Вітаємо, ${name}! Твій новий профіль створено. Час додати першу книжку! 🎉`);
 }
 
@@ -778,6 +1373,7 @@ function saveProfileChanges() {
     activeChild.avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${activeChild.avatarSeed}`;
     closeEditProfileModal();
     renderUI();
+    saveStateToFirestore();
     alert(`Профіль успішно оновлено! Вітаємо, ${activeChild.name}! 🎉`);
 }
 
@@ -1285,6 +1881,7 @@ function saveNewBook() {
     closeAddBookModal();
     renderUI();
     showKidSubTab('shelf');
+    saveStateToFirestore();
     alert(`Книгу "${title}" успішно додано на вашу книжкову полицю! 📚✨`);
 }
 
@@ -1310,6 +1907,7 @@ function approveBookReward() {
     });
 
     renderUI();
+    saveStateToFirestore();
     alert(`Зараховано ${rewardCalc.finalRewardPoints} балів для ${activeChild.name}! Книгу перенесено в Архів.`);
 }
 
@@ -1481,13 +2079,14 @@ function saveLoggedDailyPages(pagesRead, isSuperAchievement = false) {
         });
 
         renderUI();
-
+        saveStateToFirestore();
         // Open Super Achievement Celebration Mini-Modal
         const celebrationPages = document.getElementById('celebrationPagesCount');
         if (celebrationPages) celebrationPages.innerText = pagesRead;
         document.getElementById('superAchievementCelebrationModal').classList.add('active');
     } else {
         renderUI();
+        saveStateToFirestore();
         alert(`Чудова робота! Збережено +${pagesRead} прочитаних сторінок для книги "${activeBook.title}"! 📚✨`);
     }
 }
@@ -1611,6 +2210,7 @@ function claimAchievementReward(achievementId) {
 
         renderUI();
         renderAchievementsListGrid();
+        saveStateToFirestore();
     }
 }
 

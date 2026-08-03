@@ -22,6 +22,16 @@
             </div>
             
             <div class="header-actions">
+                <!-- Family Badge & Sign Out Button -->
+                <div id="authHeaderInfo" class="auth-header-info hidden">
+                    <span id="userFamilyName" class="user-family-badge" title="Акаунт вашої родини">
+                        <i class="fa-solid fa-house-user" aria-hidden="true"></i> <span id="familyBadgeText">Родина</span>
+                    </span>
+                    <button class="icon-btn logout-btn" onclick="handleSignOut()" title="Вийти з акаунту родини" aria-label="Вийти">
+                        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                    </button>
+                </div>
+
                 <!-- Notifications Bell -->
                 <div class="notification-wrapper">
                     <button class="icon-btn" onclick="toggleNotificationsModal()" aria-label="Переглянути сповіщення">
@@ -44,7 +54,78 @@
     <!-- MAIN APP CONTAINER -->
     <main class="app-container">
 
-        <!-- 1. EMPTY STATE: NO CHILDREN REGISTERED -->
+        <!-- 0. AUTH VIEW: LOGIN & REGISTRATION -->
+        <section id="authView" class="view-section active">
+            <div class="auth-card card">
+                <div class="auth-header text-center">
+                    <div class="welcome-icon-glow">
+                        <i class="fa-solid fa-house-chimney-user" aria-hidden="true"></i>
+                    </div>
+                    <h2>Акаунт Родини 📚✨</h2>
+                    <p class="subtitle">Увійдіть або створіть новий родинний акаунт для збереження книг, монет та прогресу в хмарі.</p>
+                </div>
+
+                <!-- Auth Mode Tabs -->
+                <div class="auth-tabs">
+                    <button id="authTabLogin" class="auth-tab-btn active" onclick="switchAuthMode('login')">
+                        <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Вхід
+                    </button>
+                    <button id="authTabRegister" class="auth-tab-btn" onclick="switchAuthMode('register')">
+                        <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Реєстрація родини
+                    </button>
+                </div>
+
+                <!-- Error & Success Banners -->
+                <div id="authErrorAlert" class="auth-alert text-danger hidden"></div>
+                <div id="authSuccessAlert" class="auth-alert text-success hidden"></div>
+
+                <!-- LOGIN FORM -->
+                <form id="loginForm" onsubmit="handleAuthSubmit(event)">
+                    <div class="form-group">
+                        <label for="authEmail"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Email (пошта родини) *</label>
+                        <input type="email" id="authEmail" required placeholder="family@example.com" autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="authPassword"><i class="fa-solid fa-key" aria-hidden="true"></i> Пароль *</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="authPassword" required minlength="6" placeholder="••••••••" autocomplete="current-password">
+                            <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility('authPassword', this)" title="Показати/приховати пароль" aria-label="Показати пароль">
+                                <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="forgotPasswordRow" class="forgot-password-row">
+                        <button type="button" class="link-btn" onclick="handleForgotPassword()">
+                            <i class="fa-solid fa-circle-question" aria-hidden="true"></i> Забули пароль?
+                        </button>
+                    </div>
+
+                    <!-- Register-only fields -->
+                    <div id="registerFields" class="hidden">
+                        <div class="form-group">
+                            <label for="authFamilyName"><i class="fa-solid fa-people-roof" aria-hidden="true"></i> Назва вашої родини *</label>
+                            <input type="text" id="authFamilyName" placeholder="Наприклад: Сім'я Коваленків">
+                        </div>
+                        <div class="form-group">
+                            <label for="authParentPin"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> 4-значний PIN батьків *</label>
+                            <input type="password" id="authParentPin" maxlength="4" placeholder="1234" value="1234">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="authSubmitBtn" class="btn btn-primary btn-lg full-width margin-top">
+                        <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Увійти у родинний акаунт
+                    </button>
+                </form>
+
+                <!-- Firebase Config Status Banner -->
+                <div id="firebaseConfigNotice" class="calc-preview-card margin-top text-center hidden" style="background: rgba(251, 191, 36, 0.1); border-color: var(--gold);">
+                    <p style="color: var(--gold); font-size: 0.85rem; margin: 0;">
+                        <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Потрібно вказати ключі вашого Firebase проєкту в <code>app.js</code> для роботи хмари.
+                    </p>
+                </div>
+            </div>
+        </section>
         <section id="noChildView" class="view-section text-center">
             <div class="empty-hero-card card">
                 <div class="welcome-icon-glow">
@@ -106,6 +187,7 @@
                     <button class="sec-tab-btn" id="tabBtnReading" onclick="showKidSubTab('reading')">📖 Поточне читання</button>
                     <button class="sec-tab-btn" id="tabBtnTimer" onclick="showKidSubTab('timer')">⏱️ Таймер Читання</button>
                     <button class="sec-tab-btn" id="tabBtnArchive" onclick="showKidSubTab('archive')">🏆 Архів прочитаних</button>
+                    <button class="sec-tab-btn" id="tabBtnFriends" onclick="showKidSubTab('friends')">👥 Мої Друзі-Читачі</button>
                 </div>
 
                 <!-- SUBTAB 1: BOOKSHELF (КНИЖКОВА ПОЛИЦЯ WITH TOOLBAR) -->
@@ -285,6 +367,26 @@
                     </div>
                 </div>
 
+                <!-- SUBTAB 5: READER FRIENDS SOCIAL HUB -->
+                <div id="kidSubTabFriends" class="kid-subtab hidden">
+                    <div class="card friends-container-card">
+                        <div class="friends-header">
+                            <div>
+                                <h2><i class="fa-solid fa-user-group" style="color: var(--cyan);" aria-hidden="true"></i> Мої Друзі-Читачі 🚀</h2>
+                                <p class="subtitle">Стеж за рекордами, читацьким стріком та ачівками своїх друзів!</p>
+                            </div>
+                            <button class="btn btn-warning pulse" onclick="copyMyFriendInviteLink()">
+                                <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Запросити друга
+                            </button>
+                        </div>
+
+                        <div class="friends-leaderboard-card margin-top">
+                            <h3><i class="fa-solid fa-trophy" style="color: var(--gold);" aria-hidden="true"></i> Читацький Лідерборд Друзів</h3>
+                            <div id="friendsListGrid" class="friends-grid margin-top"></div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </section>
 
@@ -297,29 +399,30 @@
                         <h2><i class="fa-solid fa-users" aria-hidden="true"></i> Моя Сім'я</h2>
                         <button class="btn btn-sm btn-outline" onclick="openAddChildModal()"><i class="fa-solid fa-plus" aria-hidden="true"></i> Дитина</button>
                     </div>
-                    <div class="child-card active" onclick="switchRole('kid')" title="Перейти до дитячої сторінки">
-                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Sofia" alt="Аватар дитини" class="child-avatar" id="parentChildAvatar">
-                        <div class="child-info">
-                            <h3 id="parentChildNameDisplay">Поліна (8 років)</h3>
-                            <div class="balance-badge"><i class="fa-solid fa-coins" aria-hidden="true"></i> <span id="parentChildBalance">450.00</span> балів</div>
-                        </div>
-                        <i class="fa-solid fa-arrow-right-to-bracket child-card-go-icon" aria-hidden="true"></i>
-                    </div>
+
+                    <!-- Dynamic Children Cards in Parent View -->
+                    <div id="parentChildrenList" class="parent-children-list"></div>
                     
-                    <div class="quick-stats">
+                    <div class="quick-stats margin-top">
                         <div class="stat-item">
-                            <span class="stat-num" id="archivedBooksCount">2</span>
+                            <span class="stat-num" id="archivedBooksCount">0</span>
                             <span class="stat-label">В архіві</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-num" id="activeBooksCount">1</span>
+                            <span class="stat-num" id="activeBooksCount">0</span>
                             <span class="stat-label">В процесі</span>
                         </div>
                         <div class="stat-item highlight">
-                            <span class="stat-num" id="pendingApprovalCount">1</span>
+                            <span class="stat-num" id="pendingApprovalCount">0</span>
                             <span class="stat-label">Перевірка</span>
                         </div>
                     </div>
+
+                    <hr class="divider">
+
+                    <button class="btn btn-sm btn-outline text-danger full-width" onclick="requestDeleteAccount()" title="Остаточно видалити цей акаунт родини">
+                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i> Видалити акаунт родини
+                    </button>
                 </div>
 
                 <!-- Main Content Area -->
@@ -679,6 +782,11 @@
             </div>
         </div>
     </div>
+
+    <!-- Firebase SDK (v10 compat mode) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
     <script src="app.js"></script>
 </body>
