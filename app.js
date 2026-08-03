@@ -305,12 +305,18 @@ function renderKidBookshelf() {
 
     let childBooks = state.books.filter(b => b.childId === state.activeChildId);
 
-    // 1. Apply Search Query Filter (Title or Author)
+    const searchInput = document.getElementById('shelfSearchInput');
+    if (searchInput) {
+        state.bookshelf.searchQuery = searchInput.value.trim().toLowerCase();
+    }
+
+    // 1. Apply Search Query Filter (Title, Author or Synopsis)
     if (state.bookshelf.searchQuery) {
         const q = state.bookshelf.searchQuery;
         childBooks = childBooks.filter(b => 
-            b.title.toLowerCase().includes(q) || 
-            b.author.toLowerCase().includes(q)
+            (b.title && b.title.toLowerCase().includes(q)) || 
+            (b.author && b.author.toLowerCase().includes(q)) ||
+            (b.synopsis && b.synopsis.toLowerCase().includes(q))
         );
     }
 
@@ -884,22 +890,315 @@ function recalculateParentTier() {
 
     const rewardCalc = calculateReadingReward(P, R, D);
 
+    const pagesDisp = document.getElementById('calcTotalPagesDisplay');
+    if (pagesDisp) {
+        pagesDisp.innerText = P;
+    }
+
     document.getElementById('calcTargetDays').innerText = rewardCalc.targetDays;
     document.getElementById('calcBaseReward').innerText = rewardCalc.baseReward;
     document.getElementById('calcBonusReward').innerText = rewardCalc.bonusAmount;
     document.getElementById('calcPenaltyReward').innerText = rewardCalc.bonusAmount;
 }
 
-function searchGoogleBooks() {
-    const q = document.getElementById('searchQuery').value.trim();
-    if (!q) return;
-    
-    document.getElementById('bookTitleInput').value = `Пригоди ${q}`;
-    document.getElementById('bookAuthorInput').value = 'Відомий Автор';
-    document.getElementById('bookSynopsisInput').value = `Захоплююча історія про ${q}, яка вчить хоробрості та дружбі.`;
-    document.getElementById('bookCoverInput').value = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80';
-    document.getElementById('totalPagesInput').value = '240';
+// LOCAL CURATED BOOK CATALOG FOR INSTANT SEARCH (OFFLINE & FALLBACK SAFE)
+const LOCAL_BOOK_CATALOG = [
+    {
+        title: 'Нові темні віки. Колонія',
+        author: 'Макс Кідрук',
+        pages: 904,
+        synopsis: 'Незвичайний масштабний фантастичний роман Макса Кідрука про майбутню колонізацію Марса та кризу людства у XXII столітті.',
+        coverUrl: 'https://covers.openlibrary.org/b/id/15151801-M.jpg'
+    },
+    {
+        title: 'Зазирни у мої сни',
+        author: 'Макс Кідрук',
+        pages: 520,
+        synopsis: 'Містичний трилер про хлопчика Теорія, у сни якого під час операції проникає щось темне та небезпечне.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Я бачу, вас цікавить пітьма',
+        author: 'Ілларіон Павлюк',
+        pages: 664,
+        synopsis: 'Психологічний детективний трилер про розслідування зникнення дівчинки у загадковому селищі Буськів Сад.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Гаррі Поттер і філософський камінь',
+        author: 'Дж. К. Роулінг',
+        pages: 320,
+        synopsis: 'Історія про 11-річного хлопчика-сироту, який дізнається, що він чарівник, і вирушає на навчання до школи чаклунства Гоґвортс.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Гаррі Поттер і таємна кімната',
+        author: 'Дж. К. Роулінг',
+        pages: 352,
+        synopsis: 'Другий рік навчання Гаррі Поттера у Гоґвортсі, де темні сили відкривають загадкову Таємну кімнату.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Маленький принц',
+        author: 'Антуан де Сент-Екзюпері',
+        pages: 120,
+        synopsis: 'Казка-притча про хлопчика з віддаленого астероїда Б-612, яка розповідає про любов, дружбу, вірність та відповідальність.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Тореадори з Васюківки',
+        author: 'Всеволод Нестайко',
+        pages: 440,
+        synopsis: 'Веселі та сповнені пригод історії двох друзів Яви та Павлуші з села Васюківка.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Аліса в Країні Див',
+        author: 'Льюїс Керрол',
+        pages: 192,
+        synopsis: 'Неймовірна подорож дівчинки Аліси крізь кролячу нору до дивовижного світу капелюшників та Чеширського кота.',
+        coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Пригоди Тома Сойєра',
+        author: 'Марк Твен',
+        pages: 240,
+        synopsis: 'Захопливий роман про кмітливого та винахідливого хлопчика Тома Сойєра на берегах Міссісіпі.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Пеппі Довгапанчоха',
+        author: 'Астрід Ліндгрен',
+        pages: 180,
+        synopsis: 'Історія про найсильнішу та найвеселішу дівчинку у світі з рудими кісками, яка живе у віллі "Схованка".',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Хроніки Нарнії: Лев, Чаклунка і Шафа',
+        author: 'Клайв Стейплз Льюїс',
+        pages: 208,
+        synopsis: 'Четверо дітей знаходять чарівну шафу, яка веде до засніженого чарівного світу Нарнії.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Чарівник Смарагдового міста',
+        author: 'Олександр Волков',
+        pages: 210,
+        synopsis: 'Подорож дівчинки Еллі та песика Тотошки у чарівну країну Гудвіна за допомогою жовтої цегляної дороги.',
+        coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Кобзар',
+        author: 'Тарас Шевченко',
+        pages: 280,
+        synopsis: 'Класичний збірник поетичних творів великого українського Кобзаря.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Джури козака Швайки',
+        author: 'Володимир Рутківський',
+        pages: 430,
+        synopsis: 'Історико-пригодницький роман про дитинство майбутніх козаків та розвідника Швайку.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Острів скарбів',
+        author: 'Роберт Луїс Стівенсон',
+        pages: 250,
+        synopsis: 'Легендарний роман про пошуки піратського скарбу капітана Флінта на безимянному острові.',
+        coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=300&q=80'
+    }
+];
+
+let globalSearchResultsList = [];
+
+async function searchGoogleBooks() {
+    const queryInput = document.getElementById('searchQuery');
+    const rawQuery = queryInput ? queryInput.value.trim() : '';
+    const resultsBox = document.getElementById('searchResultsBox');
+
+    if (!rawQuery) {
+        alert('Будь ласка, введіть назву книги або автора для пошуку.');
+        return;
+    }
+
+    const q = rawQuery.toLowerCase();
+    resultsBox.classList.remove('hidden');
+    resultsBox.innerHTML = `
+        <div class="search-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i> Шукаємо книги та визначаємо кількість сторінок...
+        </div>
+    `;
+
+    globalSearchResultsList = [];
+
+    // 1. Check Local Catalog Matches
+    const localMatches = LOCAL_BOOK_CATALOG.filter(b => 
+        b.title.toLowerCase().includes(q) || 
+        b.author.toLowerCase().includes(q)
+    );
+
+    localMatches.forEach(b => {
+        globalSearchResultsList.push({
+            title: b.title,
+            author: b.author,
+            pages: b.pages,
+            synopsis: b.synopsis,
+            coverUrl: b.coverUrl,
+            source: 'Каталог',
+            editionKey: null
+        });
+    });
+
+    // 2. Fetch from Open Library API (CORS & 429 friendly)
+    try {
+        const olRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(rawQuery)}&limit=6`);
+        if (olRes.ok) {
+            const olData = await olRes.json();
+            if (olData && olData.docs) {
+                const docsPromises = olData.docs.map(async doc => {
+                    const title = doc.title || '';
+                    const author = doc.author_name ? doc.author_name.join(', ') : 'Невідомий автор';
+                    let pages = doc.number_of_pages_median || doc.number_of_pages || (Array.isArray(doc.numberOfPages) ? doc.numberOfPages[0] : doc.numberOfPages);
+                    const editionKey = doc.cover_edition_key || (doc.edition_key && doc.edition_key.length > 0 ? doc.edition_key[0] : null);
+
+                    // Fetch exact page count from edition JSON if missing from search summary
+                    if (!pages && editionKey) {
+                        try {
+                            const edRes = await fetch(`https://openlibrary.org/books/${editionKey}.json`);
+                            if (edRes.ok) {
+                                const edData = await edRes.json();
+                                if (edData && edData.number_of_pages) {
+                                    pages = edData.number_of_pages;
+                                }
+                            }
+                        } catch (e) {}
+                    }
+
+                    const coverUrl = doc.cover_i 
+                        ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
+                        : 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80';
+
+                    if (title && !globalSearchResultsList.some(item => item.title.toLowerCase() === title.toLowerCase())) {
+                        globalSearchResultsList.push({
+                            title,
+                            author,
+                            pages: pages || null,
+                            synopsis: `Книга "${title}" від автора ${author}.`,
+                            coverUrl,
+                            source: 'Open Library',
+                            editionKey
+                        });
+                    }
+                });
+
+                await Promise.allSettled(docsPromises);
+            }
+        }
+    } catch (err) {
+        console.warn('Open Library search warning:', err);
+    }
+
+    // 3. Fetch from Google Books API
+    try {
+        const gbRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(rawQuery)}&maxResults=5`);
+        if (gbRes.ok) {
+            const gbData = await gbRes.json();
+            if (gbData && gbData.items) {
+                gbData.items.forEach(item => {
+                    const info = item.volumeInfo || {};
+                    const title = info.title || '';
+                    const author = info.authors ? info.authors.join(', ') : 'Невідомий автор';
+                    const pages = info.pageCount || info.printedPageCount || null;
+                    let coverUrl = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80';
+                    if (coverUrl.startsWith('http:')) coverUrl = coverUrl.replace('http:', 'https:');
+
+                    if (title && !globalSearchResultsList.some(existing => existing.title.toLowerCase() === title.toLowerCase())) {
+                        globalSearchResultsList.push({
+                            title,
+                            author,
+                            pages,
+                            synopsis: info.description || (info.subtitle ? `${info.title} - ${info.subtitle}` : `Книга "${title}".`),
+                            coverUrl,
+                            source: 'Google Books',
+                            editionKey: null
+                        });
+                    }
+                });
+            }
+        }
+    } catch (err) {
+        console.warn('Google Books search warning:', err);
+    }
+
+    if (globalSearchResultsList.length === 0) {
+        globalSearchResultsList.push({
+            title: rawQuery,
+            author: 'Автор книги',
+            pages: 200,
+            synopsis: `Книга про ${rawQuery}.`,
+            coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80',
+            source: 'Шаблон',
+            editionKey: null
+        });
+    }
+
+    resultsBox.innerHTML = '';
+    globalSearchResultsList.forEach((item, index) => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'search-result-item';
+        itemEl.onclick = () => selectGoogleBook(index);
+        
+        const pagesText = item.pages 
+            ? `${item.pages} сторінок` 
+            : 'Точний обсяг сторінок уточнюється при виборі';
+
+        itemEl.innerHTML = `
+            <img src="${item.coverUrl}" alt="${escapeHTML(item.title)}" class="search-result-thumb">
+            <div class="search-result-info">
+                <div class="search-result-title">${escapeHTML(item.title)}</div>
+                <div class="search-result-author">${escapeHTML(item.author)}</div>
+                <div class="search-result-meta"><span class="pages-pill"><i class="fa-solid fa-file-lines"></i> ${pagesText}</span> • <span style="opacity:0.8;">${item.source}</span></div>
+            </div>
+            <button class="btn btn-sm btn-accent" type="button"><i class="fa-solid fa-plus"></i> Обрати</button>
+        `;
+        resultsBox.appendChild(itemEl);
+    });
+}
+
+async function selectGoogleBook(index) {
+    const item = globalSearchResultsList[index];
+    if (!item) return;
+
+    let finalPages = item.pages;
+
+    // If page count wasn't retrieved in initial search doc, fetch edition details now!
+    if (!finalPages && item.editionKey) {
+        try {
+            const edRes = await fetch(`https://openlibrary.org/books/${item.editionKey}.json`);
+            if (edRes.ok) {
+                const edData = await edRes.json();
+                if (edData && edData.number_of_pages) {
+                    finalPages = edData.number_of_pages;
+                }
+            }
+        } catch (e) {}
+    }
+
+    if (!finalPages || finalPages <= 0) {
+        finalPages = 200; // Fallback if page count is unavailable
+    }
+
+    document.getElementById('bookTitleInput').value = item.title;
+    document.getElementById('bookAuthorInput').value = item.author;
+    document.getElementById('bookSynopsisInput').value = item.synopsis;
+    document.getElementById('bookCoverInput').value = item.coverUrl;
+    document.getElementById('totalPagesInput').value = finalPages;
+
     recalculateParentTier();
+
+    const resultsBox = document.getElementById('searchResultsBox');
+    resultsBox.classList.add('hidden');
 }
 
 function saveNewBook() {

@@ -501,7 +501,7 @@
                 <div class="form-group">
                     <label>Пошук книги в мережі (Google Books API):</label>
                     <div class="search-input-group">
-                        <input type="text" id="searchQuery" placeholder="Введіть назву книги (наприклад: Гаррі Поттер)...">
+                        <input type="text" id="searchQuery" placeholder="Введіть назву книги (наприклад: Гаррі Поттер)..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); searchGoogleBooks(); }">
                         <button class="btn btn-primary" onclick="searchGoogleBooks()"><i class="fa-solid fa-search" aria-hidden="true"></i> Пошук</button>
                     </div>
                 </div>
@@ -545,6 +545,7 @@
                 <div class="calc-preview-card">
                     <h4><i class="fa-solid fa-calculator" aria-hidden="true"></i> Розрахунок термінів та балів:</h4>
                     <div class="calc-metrics">
+                        <div>Загалом сторінок (P): <strong id="calcTotalPagesDisplay" style="color: var(--cyan);">120</strong> стор.</div>
                         <div>Базовий термін (T): <strong id="calcTargetDays">10</strong> днів</div>
                         <div>Базова винагорода (P*R): <strong id="calcBaseReward">300</strong> балів</div>
                         <div class="text-success">Бонус (≤ T дн): <strong>+<span id="calcBonusReward">150</span> балів (+50%)</strong></div>
