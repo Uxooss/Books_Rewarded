@@ -25,6 +25,10 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+    overflow-x: hidden;
+}
+
 body {
     font-family: var(--font-main);
     background-color: var(--bg-kid);
@@ -128,6 +132,50 @@ body {
 }
 
 .pin-lock-icon { font-size: 0.75rem; opacity: 0.8; }
+
+/* Kid Mode Button (visible in parent mode) */
+.kid-pill {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid var(--emerald);
+    color: #6ee7b7;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.kid-pill:hover {
+    background: var(--emerald);
+    color: #fff;
+}
+
+/* Clickable Child Card in Parent View */
+.child-card[onclick] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.child-card[onclick]:hover {
+    border-color: var(--cyan);
+    background: rgba(6, 182, 212, 0.1);
+}
+
+.child-card-go-icon {
+    font-size: 1.1rem;
+    color: #64748b;
+    margin-left: auto;
+    transition: all 0.2s ease;
+}
+
+.child-card[onclick]:hover .child-card-go-icon {
+    color: var(--cyan);
+    transform: translateX(3px);
+}
 
 /* Container & Sections */
 .app-container {
@@ -1528,11 +1576,50 @@ input[type="range"] { width: 250px; accent-color: var(--cyan); }
     }
 
     /* Parent View Elements */
+    .family-overview {
+        overflow: hidden;
+    }
+
+    .family-overview .card-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .family-overview .card-header .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .family-overview .card-header h2 {
+        font-size: 1.3rem;
+    }
+
+    .child-card {
+        flex-wrap: wrap;
+    }
+
+    .child-info {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .child-info h3 {
+        word-break: break-word;
+        font-size: 1rem;
+    }
+
     .action-bar {
         flex-direction: column;
         gap: 12px;
         align-items: stretch;
         text-align: center;
+    }
+
+    .action-bar h2 {
+        font-size: 1.2rem;
+        word-break: break-word;
     }
 
     .action-bar .btn {
@@ -1554,6 +1641,68 @@ input[type="range"] { width: 250px; accent-color: var(--cyan); }
     .alert-banner .btn {
         width: 100%;
         justify-content: center;
+    }
+
+    .alert-banner h4 {
+        font-size: 0.95rem;
+        word-break: break-word;
+    }
+
+    .alert-banner p {
+        font-size: 0.85rem;
+        word-break: break-word;
+    }
+
+    .books-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .book-card {
+        overflow: hidden;
+    }
+
+    .book-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .book-card-header .tag {
+        align-self: flex-start;
+    }
+
+    .book-title {
+        font-size: 1rem;
+        word-break: break-word;
+    }
+
+    .book-synopsis-card {
+        word-break: break-word;
+    }
+
+    .meta-row {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .main-dashboard-content {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    #parentView .section-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    #parentView .sec-tab-btn {
+        width: 100%;
+        text-align: center;
+        font-size: 0.85rem;
+        padding: 10px 6px;
     }
 }
 
@@ -1601,9 +1750,25 @@ input[type="range"] { width: 250px; accent-color: var(--cyan); }
         width: 100%;
     }
 
-    /* Archive Card Mobile Layout */
+    /* Archive & Book Card Mobile Layout */
     .book-card {
         padding: 14px;
+    }
+
+    .books-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .quick-stats {
+        gap: 4px;
+    }
+
+    .stat-num {
+        font-size: 1rem;
+    }
+
+    .stat-label {
+        font-size: 0.65rem;
     }
 
     .book-card-header {

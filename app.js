@@ -160,10 +160,7 @@ function escapeHTML(str) {
 
 // MODAL UTILITY: BACKDROP CLICK CLOSING
 function handleBackdropClick(event, modalId) {
-    if (event.target.classList.contains('modal-backdrop')) {
-        document.getElementById(modalId).classList.remove('active');
-        if (modalId === 'parentPinModal') clearPinInputs();
-    }
+    // Backdrop click disabled — modals close only via close/cancel buttons
 }
 
 // BUSINESS LOGIC: READING SPEED CALCULATOR
@@ -701,6 +698,12 @@ function verifyParentPin() {
 
 function switchRole(role) {
     state.currentRole = role;
+
+    const btnParent = document.getElementById('btnRoleParent');
+    const btnKid = document.getElementById('btnRoleKid');
+    if (btnParent) btnParent.classList.toggle('hidden', role === 'parent');
+    if (btnKid) btnKid.classList.toggle('hidden', role === 'kid');
+
     renderUI();
 }
 

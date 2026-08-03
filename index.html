@@ -34,6 +34,9 @@
                 <button id="btnRoleParent" class="role-btn admin-pill" onclick="requestParentAccess()">
                     <i class="fa-solid fa-user-shield" aria-hidden="true"></i> Батьківський режим <i class="fa-solid fa-lock pin-lock-icon" aria-hidden="true"></i>
                 </button>
+                <button id="btnRoleKid" class="role-btn kid-pill hidden" onclick="switchRole('kid')">
+                    <i class="fa-solid fa-child-reaching" aria-hidden="true"></i> Дитячий режим
+                </button>
             </div>
         </div>
     </header>
@@ -294,12 +297,13 @@
                         <h2><i class="fa-solid fa-users" aria-hidden="true"></i> Моя Сім'я</h2>
                         <button class="btn btn-sm btn-outline" onclick="openAddChildModal()"><i class="fa-solid fa-plus" aria-hidden="true"></i> Дитина</button>
                     </div>
-                    <div class="child-card active">
+                    <div class="child-card active" onclick="switchRole('kid')" title="Перейти до дитячої сторінки">
                         <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Sofia" alt="Аватар дитини" class="child-avatar" id="parentChildAvatar">
                         <div class="child-info">
                             <h3 id="parentChildNameDisplay">Поліна (8 років)</h3>
                             <div class="balance-badge"><i class="fa-solid fa-coins" aria-hidden="true"></i> <span id="parentChildBalance">450.00</span> балів</div>
                         </div>
+                        <i class="fa-solid fa-arrow-right-to-bracket child-card-go-icon" aria-hidden="true"></i>
                     </div>
                     
                     <div class="quick-stats">
