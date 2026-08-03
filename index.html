@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Книги та Винагороди — Гейміфікація читання для дітей</title>
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-kid">
+
+    <!-- Header Navigation -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fa-solid fa-book-open-reader logo-icon" aria-hidden="true"></i>
+                <span class="logo-text">Книги<span>Нагороди</span></span>
+            </div>
+            
+            <div class="header-actions">
+                <!-- Notifications Bell -->
+                <div class="notification-wrapper">
+                    <button class="icon-btn" onclick="toggleNotificationsModal()" aria-label="Переглянути сповіщення">
+                        <i class="fa-solid fa-bell" aria-hidden="true"></i>
+                        <span class="notif-badge" id="notifBadge">0</span>
+                    </button>
+                </div>
+
+                <!-- Admin Access Button -->
+                <button id="btnRoleParent" class="role-btn admin-pill" onclick="requestParentAccess()">
+                    <i class="fa-solid fa-user-shield" aria-hidden="true"></i> Батьківський режим <i class="fa-solid fa-lock pin-lock-icon" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN APP CONTAINER -->
+    <main class="app-container">
+
+        <!-- 1. EMPTY STATE: NO CHILDREN REGISTERED -->
+        <section id="noChildView" class="view-section text-center">
+            <div class="empty-hero-card card">
+                <div class="welcome-icon-glow">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <h2>Вітаємо у застосунку "Книги та Винагороди"! 📚✨</h2>
+                <p class="subtitle">Приєднуйтесь до захопливого світу читання, де кожна прочитана сторінка перетворюється на золоті монети та подарунки!</p>
+                
+                <div class="create-profile-trigger" onclick="openAddChildModal()">
+                    <div class="plus-circle-btn">
+                        <i class="fa-solid fa-plus"></i>
+                    </div>
+                    <span class="btn-label">Створити перший профіль читача</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. KID READER MAIN DASHBOARD -->
+        <section id="kidView" class="view-section active">
+            <div class="kid-dashboard">
+                <!-- Top Kid Hero & Profiles Bar -->
+                <div class="kid-hero card">
+                    <div class="kid-mascot">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Sofia" alt="Mascot Avatar" class="mascot-img" id="kidMascotImg">
+                        <button class="btn btn-sm btn-outline edit-avatar-btn" onclick="openEditProfileModal()">
+                            <i class="fa-solid fa-pen" aria-hidden="true"></i> Аватар & Нік
+                        </button>
+                    </div>
+
+                    <div class="kid-welcome">
+                        <div class="welcome-header-row">
+                            <h2>Привіт, <span id="kidNicknameDisplay">Поліна</span>! 👋✨</h2>
+                            <!-- Multiple Children Profile Switcher Bar -->
+                            <div class="children-profiles-bar" id="childrenProfilesBar">
+                                <button class="add-child-pill" onclick="openAddChildModal()" title="Додати ще одного читача">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p>Обирай книгу з книжкової полиці або додавай нову та заробляй монети!</p>
+                        
+                        <div class="hero-badges-row">
+                            <div class="streak-badge"><i class="fa-solid fa-fire" aria-hidden="true"></i> <span id="kidStreakCount">5</span> Днів поспіль!</div>
+                            <div class="coins-display">
+                                <i class="fa-solid fa-coins coin-icon" aria-hidden="true"></i>
+                                <span id="kidBalance">450.00</span> Монет
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kid Sub Navigation Bar -->
+                <div class="section-tabs">
+                    <button class="sec-tab-btn active" id="tabBtnShelf" onclick="showKidSubTab('shelf')">📚 Моя Книжкова Полиця</button>
+                    <button class="sec-tab-btn" id="tabBtnReading" onclick="showKidSubTab('reading')">📖 Поточне читання</button>
+                    <button class="sec-tab-btn" id="tabBtnTimer" onclick="showKidSubTab('timer')">⏱️ Таймер Читання</button>
+                    <button class="sec-tab-btn" id="tabBtnArchive" onclick="showKidSubTab('archive')">🏆 Архів прочитаних</button>
+                </div>
+
+                <!-- SUBTAB 1: BOOKSHELF (КНИЖКОВА ПОЛИЦЯ WITH TOOLBAR) -->
+                <div id="kidSubTabShelf" class="kid-subtab active">
+                    <div class="bookshelf-container card">
+                        <div class="bookshelf-header">
+                            <div>
+                                <h2><i class="fa-solid fa-book-bookmark"></i> Книжкова Полиця</h2>
+                                <p class="subtitle">Зручний пошук, фільтрація та сортування твоїх книг.</p>
+                            </div>
+                            <button class="btn btn-primary" onclick="openAddBookModal()">
+                                <i class="fa-solid fa-plus"></i> Додати книжку
+                            </button>
+                        </div>
+
+                        <!-- BOOKSHELF TOOLBAR: SEARCH, FILTERS, SORT & VIEW MODES -->
+                        <div class="bookshelf-toolbar">
+                            <div class="toolbar-search">
+                                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                <input type="text" id="shelfSearchInput" placeholder="Пошук за назвою або автором..." oninput="onShelfFilterChange()" aria-label="Пошук за назвою або автором">
+                            </div>
+
+                            <div class="toolbar-filters">
+                                <select id="shelfFilterStatus" class="toolbar-select" onchange="onShelfFilterChange()" aria-label="Фільтр за статусом">
+                                    <option value="all">Усі книги</option>
+                                    <option value="active">Читаю зараз</option>
+                                    <option value="quiz_pending">Очікують квізу 🏆</option>
+                                    <option value="archived">Прочитані ✅</option>
+                                </select>
+
+                                <select id="shelfSortBy" class="toolbar-select" onchange="onShelfFilterChange()" aria-label="Сортування">
+                                    <option value="progress_desc">Прогрес: від більшого</option>
+                                    <option value="progress_asc">Прогрес: від меншого</option>
+                                    <option value="title_asc">Назва (А-Я)</option>
+                                </select>
+
+                                <!-- View Modes Switcher Pills -->
+                                <div class="view-modes-group">
+                                    <button id="btnViewGrid" class="view-mode-btn active" onclick="setBookshelfViewMode('grid')" title="Звичайні картки">
+                                        <i class="fa-solid fa-border-all"></i>
+                                    </button>
+                                    <button id="btnViewCompact" class="view-mode-btn" onclick="setBookshelfViewMode('compact')" title="Маленькі картки">
+                                        <i class="fa-solid fa-grip-vertical"></i>
+                                    </button>
+                                    <button id="btnViewList" class="view-mode-btn" onclick="setBookshelfViewMode('list')" title="Список">
+                                        <i class="fa-solid fa-list-ul"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Empty Bookshelf Banner -->
+                        <div id="emptyShelfBanner" class="empty-shelf-banner hidden">
+                            <div class="empty-shelf-content">
+                                <i class="fa-solid fa-book-open-reader empty-icon"></i>
+                                <h3>Нічого не знайдено! 📚</h3>
+                                <p id="emptyShelfText">Додай свою першу книжку, щоб розпочати пригоду та отримати свої перші золоті монети!</p>
+                                <button class="btn btn-warning btn-lg pulse margin-top" onclick="openAddBookModal()">
+                                    <i class="fa-solid fa-circle-plus"></i> Додай свою першу книжку
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Bookshelf Grid/List -->
+                        <div class="bookshelf-grid view-grid" id="kidBookshelfGrid">
+                            <!-- Rendered dynamically as 3D Cards or List -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 2: READING NOW -->
+                <div id="kidSubTabReading" class="kid-subtab hidden">
+                    <div class="card active-reading-card">
+                        <div class="reading-header">
+                            <span class="tag tag-active"><i class="fa-solid fa-book-open" aria-hidden="true"></i> Читаю зараз</span>
+                            <span class="days-left"><i class="fa-solid fa-clock" aria-hidden="true"></i> Залишилося <span id="kidDaysLeft">3</span> дні до <strong>+50% Бонусу!</strong></span>
+                        </div>
+
+                        <div class="book-details-hero">
+                            <img src="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80" alt="Обкладинка книги" class="book-cover-img" id="kidBookCover">
+                            <div class="book-meta-hero">
+                                <h2 id="kidBookTitle">Маленький принц</h2>
+                                <p class="author" id="kidBookAuthor">Антуан де Сент-Екзюпері</p>
+                                <p class="synopsis" id="kidBookSynopsis">Казка-притча про хлопчика з віддаленого астероїда Б-612, яка розповідає про любов, дружбу, вірність та відповідальність.</p>
+
+                                <div class="reading-progress-block">
+                                    <div class="progress-info">
+                                        <span>Прочитано: <strong id="kidCurrentPage">120</strong> з <span id="kidTotalPages">120</span> стор.</span>
+                                        <span class="percent-badge" id="kidProgressPercent">100%</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar-fill" id="kidProgressBar" style="width: 100%;"></div>
+                                    </div>
+                                </div>
+
+                                <div class="reward-tier-preview">
+                                    <div class="tier-pill bonus"><i class="fa-solid fa-gift" aria-hidden="true"></i> До T (10 дн.): <span id="kidBonusRewardVal">450</span> монет (+50%)</div>
+                                    <div class="tier-pill standard"><i class="fa-solid fa-check" aria-hidden="true"></i> 11-15 дн.: <span id="kidBaseRewardVal">300</span> монет</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Daily Reading Logger Component -->
+                        <div class="daily-logger-box" id="dailyLoggerBox">
+                            <h3><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Скільки сторінок ти прочитала сьогодні?</h3>
+                            <div class="slider-container">
+                                <button class="btn-circle" onclick="adjustPages(-5)" aria-label="Зменшити на 5"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+                                <input type="range" id="pageSlider" min="0" max="30" value="30" oninput="updateSliderValue(this.value)" aria-label="Слайдер сторінок">
+                                <button class="btn-circle" onclick="adjustPages(5)" aria-label="Збільшити на 5"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+                                <span class="slider-val-badge">+<span id="sliderVal">30</span> стор.</span>
+                            </div>
+                            <button class="btn btn-lg btn-accent" onclick="logDailyPages()">
+                                <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Зберегти сьогоднішній результат
+                            </button>
+                        </div>
+
+                        <!-- Quiz Action Banner (triggers when completed) -->
+                        <div id="kidQuizActionBanner" class="quiz-trigger-box hidden">
+                            <div class="quiz-trigger-content">
+                                <i class="fa-solid fa-trophy trophy-icon" aria-hidden="true"></i>
+                                <div>
+                                    <h3>Ура! Книгу прочитано на 100%! 🎉</h3>
+                                    <p>Пройди короткий квіз із 5 запитань, щоб отримати свої монети!</p>
+                                </div>
+                            </div>
+                            <button class="btn btn-warning btn-lg pulse" onclick="startKidQuiz()">
+                                <i class="fa-solid fa-circle-play" aria-hidden="true"></i> Розпочати Квіз
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 3: INTERACTIVE READING TIMER -->
+                <div id="kidSubTabTimer" class="kid-subtab hidden">
+                    <div class="card timer-card">
+                        <div class="timer-header">
+                            <h2><i class="fa-solid fa-stopwatch" aria-hidden="true"></i> Інтерактивний Таймер Читання</h2>
+                            <p>Запусти таймер перед початком читання, а по завершенні вкажи прочитані сторінки!</p>
+                        </div>
+
+                        <div class="timer-display" id="timerClock">00:00:00</div>
+
+                        <div class="timer-controls">
+                            <button id="btnStartTimer" class="btn btn-lg btn-success" onclick="startReadingTimer()">
+                                <i class="fa-solid fa-play" aria-hidden="true"></i> Почати читання
+                            </button>
+                            <button id="btnPauseTimer" class="btn btn-lg btn-warning hidden" onclick="pauseReadingTimer()">
+                                <i class="fa-solid fa-pause" aria-hidden="true"></i> Пауза
+                            </button>
+                            <button id="btnResetTimer" class="btn btn-lg btn-outline hidden" onclick="requestResetTimer()">
+                                <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Скинути таймер
+                            </button>
+                            <button id="btnStopTimer" class="btn btn-lg btn-primary hidden" onclick="openFinishSessionModal()">
+                                <i class="fa-solid fa-square" aria-hidden="true"></i> Завершити сесію
+                            </button>
+                        </div>
+
+                        <div class="timer-stats-preview hidden" id="timerSpeedMetrics">
+                            <h4><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Аналітика вашої останньої сесії:</h4>
+                            <div class="metrics-grid">
+                                <div>Тривалість: <strong id="metricDuration">15 хв 00 сек</strong></div>
+                                <div>Прочитано сторінок: <strong id="metricPages">10 стор.</strong></div>
+                                <div>Швидкість читання: <strong id="metricSpeed" class="text-success">40 стор/год</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 4: KID ARCHIVE -->
+                <div id="kidSubTabArchive" class="kid-subtab hidden">
+                    <div class="card">
+                        <h2><i class="fa-solid fa-box-archive" aria-hidden="true"></i> Мій Архів прочитаних книг</h2>
+                        <p class="subtitle">Історія твоїх прочитаних книжок, дата початку і фінішу та здобуті бали.</p>
+                        <div class="books-grid" id="kidArchiveGrid"></div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 3. PARENT ADMIN VIEW -->
+        <section id="parentView" class="view-section">
+            <div class="dashboard-grid">
+                <!-- Left Sidebar / Stats -->
+                <div class="card family-overview">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-users" aria-hidden="true"></i> Моя Сім'я</h2>
+                        <button class="btn btn-sm btn-outline" onclick="openAddChildModal()"><i class="fa-solid fa-plus" aria-hidden="true"></i> Дитина</button>
+                    </div>
+                    <div class="child-card active">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Sofia" alt="Аватар дитини" class="child-avatar" id="parentChildAvatar">
+                        <div class="child-info">
+                            <h3 id="parentChildNameDisplay">Поліна (8 років)</h3>
+                            <div class="balance-badge"><i class="fa-solid fa-coins" aria-hidden="true"></i> <span id="parentChildBalance">450.00</span> балів</div>
+                        </div>
+                    </div>
+                    
+                    <div class="quick-stats">
+                        <div class="stat-item">
+                            <span class="stat-num" id="archivedBooksCount">2</span>
+                            <span class="stat-label">В архіві</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-num" id="activeBooksCount">1</span>
+                            <span class="stat-label">В процесі</span>
+                        </div>
+                        <div class="stat-item highlight">
+                            <span class="stat-num" id="pendingApprovalCount">1</span>
+                            <span class="stat-label">Перевірка</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="main-dashboard-content">
+                    <!-- Action Bar -->
+                    <div class="action-bar">
+                        <h2><i class="fa-solid fa-book" aria-hidden="true"></i> Управління книгами & Завданнями</h2>
+                        <button class="btn btn-primary" onclick="openAddBookModal()">
+                            <i class="fa-solid fa-plus" aria-hidden="true"></i> Додати нову книгу
+                        </button>
+                    </div>
+
+                    <!-- Pending Approval Banner -->
+                    <div id="approvalBanner" class="alert-banner info">
+                        <div class="alert-content">
+                            <i class="fa-solid fa-bell alert-icon" aria-hidden="true"></i>
+                            <div>
+                                <h4 id="approvalBannerTitle">Поліна пройшла Quiz для книги "Маленький принц" (Score: 100%)!</h4>
+                                <p id="approvalBannerRewardText">Розрахована винагорода: <strong>300 балів + 150 бонус (Разом: 450 балів)</strong></p>
+                            </div>
+                        </div>
+                        <button class="btn btn-success btn-sm" onclick="approveBookReward()">
+                            <i class="fa-solid fa-check" aria-hidden="true"></i> Підтвердити та зарахувати
+                        </button>
+                    </div>
+
+                    <!-- Tabs: Active vs Archive -->
+                    <div class="section-tabs">
+                        <button class="sec-tab-btn active" onclick="showParentTab('active')">Активні книги</button>
+                        <button class="sec-tab-btn" onclick="showParentTab('archive')">📚 Архів прочитаних книг</button>
+                    </div>
+
+                    <!-- Books Grids -->
+                    <div class="books-grid" id="parentBooksGrid"></div>
+                    <div class="books-grid hidden" id="parentArchiveGrid"></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: PARENT PIN SECURITY -->
+    <div id="parentPinModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'parentPinModal')">
+        <div class="modal-card modal-sm">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Вхід для Батьків</h3>
+                <button class="close-btn" onclick="closePinModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body text-center">
+                <p>Введіть 4-значний PIN-код (Тестовий PIN: <strong>1234</strong>):</p>
+                <div class="pin-inputs">
+                    <input type="password" maxlength="1" class="pin-digit" id="pin1" onkeydown="handlePinKey(event, 1)" oninput="movePinFocus(1)" aria-label="Цифра 1 PIN-коду">
+                    <input type="password" maxlength="1" class="pin-digit" id="pin2" onkeydown="handlePinKey(event, 2)" oninput="movePinFocus(2)" aria-label="Цифра 2 PIN-коду">
+                    <input type="password" maxlength="1" class="pin-digit" id="pin3" onkeydown="handlePinKey(event, 3)" oninput="movePinFocus(3)" aria-label="Цифра 3 PIN-коду">
+                    <input type="password" maxlength="1" class="pin-digit" id="pin4" onkeydown="handlePinKey(event, 4)" oninput="movePinFocus(4)" aria-label="Цифра 4 PIN-коду">
+                </div>
+                <div id="pinError" class="text-danger hidden margin-top">Невірний PIN-код! Спробуйте 1234.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closePinModal()">Скасувати</button>
+                <button class="btn btn-primary" onclick="verifyParentPin()"><i class="fa-solid fa-key" aria-hidden="true"></i> Увійти</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD CHILD (NEW PROFILE) -->
+    <div id="addChildModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'addChildModal')">
+        <div class="modal-card modal-sm">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-child-reaching" aria-hidden="true"></i> Новий профіль читача</h3>
+                <button class="close-btn" onclick="closeAddChildModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Ім'я читача *</label>
+                    <input type="text" id="newChildNameInput" placeholder="Наприклад: Поліна">
+                </div>
+                <div class="form-group">
+                    <label>Вік (років)</label>
+                    <input type="number" id="newChildAgeInput" value="8" min="1" max="18">
+                </div>
+                <div class="form-group">
+                    <label>Оберіть улюблений аватар-маскот:</label>
+                    <div class="avatar-picker-grid">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Sofia" alt="Avatar Sofia" class="avatar-option selected" onclick="selectNewChildAvatar(this, 'Sofia')">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Leo" alt="Avatar Leo" class="avatar-option" onclick="selectNewChildAvatar(this, 'Leo')">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Mia" alt="Avatar Mia" class="avatar-option" onclick="selectNewChildAvatar(this, 'Mia')">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Max" alt="Avatar Max" class="avatar-option" onclick="selectNewChildAvatar(this, 'Max')">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Luna" alt="Avatar Luna" class="avatar-option" onclick="selectNewChildAvatar(this, 'Luna')">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeAddChildModal()">Скасувати</button>
+                <button class="btn btn-primary" onclick="saveNewChildProfile()"><i class="fa-solid fa-check" aria-hidden="true"></i> Створити профіль</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT CHILD AVATAR & NICKNAME -->
+    <div id="editProfileModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'editProfileModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-pen" aria-hidden="true"></i> Зміна Аватара та Нікнейму</h3>
+                <button class="close-btn" onclick="closeEditProfileModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Введіть ваше ім'я / нікнейм:</label>
+                    <input type="text" id="nicknameInput" value="Поліна">
+                </div>
+                <div class="form-group">
+                    <label>Оберіть маскот-аватар:</label>
+                    <div class="avatar-picker-grid">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Sofia" alt="Avatar Sofia" class="avatar-option selected" onclick="selectAvatar(this, 'Sofia')">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Leo" alt="Avatar Leo" class="avatar-option" onclick="selectAvatar(this, 'Leo')">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Mia" alt="Avatar Mia" class="avatar-option" onclick="selectAvatar(this, 'Mia')">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Max" alt="Avatar Max" class="avatar-option" onclick="selectAvatar(this, 'Max')">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Luna" alt="Avatar Luna" class="avatar-option" onclick="selectAvatar(this, 'Luna')">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeEditProfileModal()">Скасувати</button>
+                <button class="btn btn-primary" onclick="saveProfileChanges()"><i class="fa-solid fa-check" aria-hidden="true"></i> Зберегти</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: FINISH TIMED SESSION -->
+    <div id="finishSessionModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'finishSessionModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-flag-checkered" aria-hidden="true"></i> Завершення сесії читання</h3>
+                <button class="close-btn" onclick="closeFinishSessionModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Час сесії за таймером: <strong id="modalSessionDuration">15 хв 00 сек</strong></p>
+                <div class="form-group margin-top">
+                    <label>Скільки сторінок ви прочитали за цю сесію? *</label>
+                    <input type="number" id="sessionPagesInput" value="10" min="1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeFinishSessionModal()">Скасувати</button>
+                <button class="btn btn-success" onclick="confirmFinishSession()"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Зберегти та вирахувати швидкість</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIRM RESET TIMER -->
+    <div id="resetTimerConfirmModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'resetTimerConfirmModal')">
+        <div class="modal-card modal-sm text-center">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-triangle-exclamation text-danger" aria-hidden="true"></i> Скинути таймер?</h3>
+                <button class="close-btn" onclick="closeResetTimerModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Ви впевнені, що хочете скинути поточний таймер читання?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeResetTimerModal()">Скасувати</button>
+                <button class="btn btn-danger" onclick="confirmResetTimer()"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Так, скинути</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: NOTIFICATIONS CENTER -->
+    <div id="notificationsModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'notificationsModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-bell" aria-hidden="true"></i> Центр сповіщень</h3>
+                <button class="close-btn" onclick="toggleNotificationsModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="notifications-list" id="notifList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD BOOK (KID & PARENT) -->
+    <div id="addBookModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'addBookModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-book-medical" aria-hidden="true"></i> Додати нову книгу</h3>
+                <button class="close-btn" onclick="closeAddBookModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Пошук книги в мережі (Google Books API):</label>
+                    <div class="search-input-group">
+                        <input type="text" id="searchQuery" placeholder="Введіть назву книги (наприклад: Гаррі Поттер)...">
+                        <button class="btn btn-primary" onclick="searchGoogleBooks()"><i class="fa-solid fa-search" aria-hidden="true"></i> Пошук</button>
+                    </div>
+                </div>
+
+                <div id="searchResultsBox" class="search-results-box hidden"></div>
+
+                <hr class="divider">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Назва книги *</label>
+                        <input type="text" id="bookTitleInput" placeholder="Маленький принц">
+                    </div>
+                    <div class="form-group">
+                        <label>Автор *</label>
+                        <input type="text" id="bookAuthorInput" placeholder="Антуан де Сент-Екзюпері">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>URL Обкладинки (з мережі або Google Books)</label>
+                        <input type="url" id="bookCoverInput" placeholder="https://images.unsplash.com/photo-...">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Короткий опис / Анотація книги</label>
+                        <textarea id="bookSynopsisInput" rows="2" class="form-textarea" placeholder="Короткий опис сюжета книги..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Кількість сторінок (P) *</label>
+                        <input type="number" id="totalPagesInput" value="120" min="1" oninput="recalculateParentTier()">
+                    </div>
+                    <div class="form-group">
+                        <label>Винагорода за сторінку (R)</label>
+                        <input type="number" step="0.1" id="rewardPerPageInput" value="2.5" min="0" oninput="recalculateParentTier()">
+                    </div>
+                    <div class="form-group">
+                        <label>Денна норма сторінок (D)</label>
+                        <input type="number" id="dailyNormInput" value="12" min="1" oninput="recalculateParentTier()">
+                    </div>
+                </div>
+
+                <!-- Real-time Live Reward Calculator Box -->
+                <div class="calc-preview-card">
+                    <h4><i class="fa-solid fa-calculator" aria-hidden="true"></i> Розрахунок термінів та балів:</h4>
+                    <div class="calc-metrics">
+                        <div>Базовий термін (T): <strong id="calcTargetDays">10</strong> днів</div>
+                        <div>Базова винагорода (P*R): <strong id="calcBaseReward">300</strong> балів</div>
+                        <div class="text-success">Бонус (≤ T дн): <strong>+<span id="calcBonusReward">150</span> балів (+50%)</strong></div>
+                        <div class="text-danger">Штраф (> 2T дн): <strong>-<span id="calcPenaltyReward">150</span> балів (-50%)</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeAddBookModal()">Скасувати</button>
+                <button class="btn btn-primary" onclick="saveNewBook()"><i class="fa-solid fa-check" aria-hidden="true"></i> Додати до книжкової полиці</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: QUIZ RUNNER (KID) -->
+    <div id="quizModal" class="modal-backdrop" onclick="handleBackdropClick(event, 'quizModal')">
+        <div class="modal-card quiz-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-brain" aria-hidden="true"></i> Квіз по книзі: "<span id="quizBookTitle">Книга</span>"</h3>
+                <button class="close-btn" onclick="closeQuizModal()" aria-label="Закрити модальне вікно">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="quiz-progress-bar">
+                    <div id="quizProgressFill" class="quiz-progress-fill" style="width: 20%;"></div>
+                </div>
+                <div class="quiz-step-info">
+                    Запитання <span id="currentQuestionNum">1</span> з 5
+                </div>
+
+                <div class="question-box">
+                    <h3 id="questionText">З якої планети прилетів Маленький принц?</h3>
+                    <div class="options-list" id="optionsContainer"></div>
+                </div>
+
+                <div id="quizFeedback" class="quiz-feedback-box hidden"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="nextQuestionBtn" class="btn btn-primary btn-lg" onclick="nextQuestion()" disabled>Далі <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
