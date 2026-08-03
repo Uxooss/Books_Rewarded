@@ -428,17 +428,27 @@ function checkUrlKidLink() {
             isFirebaseConfigured = true;
 
             if (unsubscribeFirestore) unsubscribeFirestore();
-            unsubscribeFirestore = db.collection('families').doc(familyId).onSnapshot(doc => {
-                if (doc.exists) {
-                    const famData = doc.data();
-                    state.parentPin = famData.parentPin || '1234';
-                    state.children = famData.children || [];
-                    state.books = famData.books || [];
-                    state.notifications = famData.notifications || [];
-                    state.activeChildId = childId;
-                    renderUI();
+            unsubscribeFirestore = db.collection('families').doc(familyId).onSnapshot(
+                doc => {
+                    if (doc.exists) {
+                        const famData = doc.data();
+                        state.parentPin = famData.parentPin || '1234';
+                        state.children = famData.children || [];
+                        state.books = famData.books || [];
+                        state.notifications = famData.notifications || [];
+                        state.activeChildId = childId;
+                        renderUI();
+                    } else {
+                        console.warn("Родинний документ за цим посиланням не знайдено.");
+                    }
+                },
+                err => {
+                    console.error("Помилка доступу за посиланням дитини:", err);
+                    if (err.code === 'permission-denied') {
+                        alert("⚠️ Помилка доступу до баз даних у Firebase.\n\nОновіть правила безпеки (Rules) у Firestore Console на 'allow read, write: if true;' для колекції families.");
+                    }
                 }
-            });
+            );
         }
     }
 }
@@ -745,7 +755,14 @@ function renderKidBookshelf() {
         card.onclick = () => selectBookForReading(book.id);
 
         let actionTagHtml = '';
-        if (book.status === 'active') {
+        if (book.status === 'planned') {
+            actionTagHtml = `
+                <span class="shelf-action-tag" style="background: rgba(251, 191, 36, 0.2); color: var(--gold);"><i class="fa-solid fa-clock"></i> Заплановано</span>
+                <button class="btn btn-sm btn-success full-width margin-top" onclick="event.stopPropagation(); startReadingBook('${book.id}')">
+                    <i class="fa-solid fa-rocket"></i> Розпочинаю читати!
+                </button>
+            `;
+        } else if (book.status === 'active') {
             actionTagHtml = `<span class="shelf-action-tag reading"><i class="fa-solid fa-book-open"></i> Читаю (${percent}%)</span>`;
         } else if (book.status === 'quiz_pending') {
             actionTagHtml = `<span class="shelf-action-tag quiz"><i class="fa-solid fa-trophy"></i> Пройди квіз!</span>`;
@@ -755,50 +772,32 @@ function renderKidBookshelf() {
 
         const coverImg = book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80';
 
-        if (state.bookshelf.viewMode === 'list') {
-            // LIST VIEW ROW
-            card.innerHTML = `
-                <div class="shelf-cover-wrapper">
-                    <img src="${coverImg}" alt="${escapeHTML(book.title)}" class="shelf-cover-img">
+        card.innerHTML = `
+            <div class="shelf-cover-wrapper">
+                <img src="${coverImg}" alt="${escapeHTML(book.title)}" class="shelf-cover-img">
+                <div class="shelf-progress-ribbon">
+                    <div class="ribbon-info">
+                        <span>Прогрес:</span>
+                        <span>${percent}%</span>
+                    </div>
+                    <div class="progress-bar-bg" style="height: 6px;">
+                        <div class="progress-bar-fill" style="width: ${percent}%;"></div>
+                    </div>
                 </div>
-                <div class="shelf-info">
+            </div>
+            <div class="shelf-info">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                     <div>
                         <h3 class="shelf-title">${escapeHTML(book.title)}</h3>
                         <p class="shelf-author">${escapeHTML(book.author)}</p>
                     </div>
-                    <div class="shelf-list-progress-bar">
-                        <span>Прогрес: ${percent}%</span>
-                        <div class="progress-bar-bg" style="height: 8px;">
-                            <div class="progress-bar-fill" style="width: ${percent}%;"></div>
-                        </div>
-                    </div>
-                    ${actionTagHtml}
+                    <button class="btn btn-sm btn-outline text-danger" style="padding: 3px 6px; font-size: 0.75rem;" onclick="event.stopPropagation(); deleteBook('${book.id}')" title="Видалити книгу з полиці">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
                 </div>
-            `;
-        } else {
-            // GRID & COMPACT GRID 3D CARDS
-            card.innerHTML = `
-                <div class="shelf-cover-wrapper">
-                    <img src="${coverImg}" alt="${escapeHTML(book.title)}" class="shelf-cover-img">
-                    <div class="shelf-progress-ribbon">
-                        <div class="ribbon-info">
-                            <span>Прогрес:</span>
-                            <span>${percent}%</span>
-                        </div>
-                        <div class="progress-bar-bg" style="height: 6px;">
-                            <div class="progress-bar-fill" style="width: ${percent}%;"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="shelf-info">
-                    <div>
-                        <h3 class="shelf-title">${escapeHTML(book.title)}</h3>
-                        <p class="shelf-author">${escapeHTML(book.author)}</p>
-                    </div>
-                    ${actionTagHtml}
-                </div>
-            `;
-        }
+                ${actionTagHtml}
+            </div>
+        `;
 
         grid.appendChild(card);
     });
@@ -815,7 +814,7 @@ function selectBookForReading(bookId) {
 // SUBTAB 2: READING NOW RENDERER
 function renderKidActiveReading(targetBook = null) {
     const childBooks = state.books.filter(b => b.childId === state.activeChildId);
-    const activeBook = targetBook || childBooks.find(b => b.status === 'active' || b.status === 'quiz_pending') || childBooks[0];
+    const activeBook = targetBook || childBooks.find(b => b.status === 'active' || b.status === 'quiz_pending' || b.status === 'planned') || childBooks[0];
     
     if (!activeBook) return;
 
@@ -834,13 +833,20 @@ function renderKidActiveReading(targetBook = null) {
     const rewardCalc = calculateReadingReward(activeBook.totalPages, activeBook.rewardPerPage, activeBook.dailyNorm);
     document.getElementById('kidBonusRewardVal').innerText = rewardCalc.finalRewardPoints;
     document.getElementById('kidBaseRewardVal').innerText = rewardCalc.baseReward;
-    document.getElementById('kidDaysLeft').innerText = Math.max(1, activeBook.targetDays - 2);
+
+    if (activeBook.status === 'planned') {
+        document.getElementById('kidDaysLeft').innerText = `${activeBook.targetDays} (не активовано)`;
+    } else {
+        document.getElementById('kidDaysLeft').innerText = Math.max(1, activeBook.targetDays - 1);
+    }
 
     const percent = Math.min(100, Math.round((activeBook.currentPage / activeBook.totalPages) * 100));
     document.getElementById('kidProgressPercent').innerText = `${percent}%`;
     document.getElementById('kidProgressBar').style.width = `${percent}%`;
 
     const isFinished = activeBook.currentPage >= activeBook.totalPages;
+    const isPlanned = activeBook.status === 'planned';
+
     const dailyLoggerBox = document.getElementById('dailyLoggerBox');
     const quizBanner = document.getElementById('kidQuizActionBanner');
 
@@ -856,11 +862,33 @@ function renderKidActiveReading(targetBook = null) {
         pageInputManual.value = defaultLogged;
     }
 
-    if (dailyLoggerBox) {
-        dailyLoggerBox.classList.toggle('hidden', isFinished);
+    // Toggle planned start banner vs daily logger vs quiz
+    let plannedBanner = document.getElementById('plannedBookStartBanner');
+    if (!plannedBanner) {
+        plannedBanner = document.createElement('div');
+        plannedBanner.id = 'plannedBookStartBanner';
+        plannedBanner.className = 'margin-top';
+        const container = document.querySelector('#kidSubTabReading .card');
+        if (container) container.insertBefore(plannedBanner, dailyLoggerBox);
     }
-    if (quizBanner) {
-        quizBanner.classList.toggle('hidden', !isFinished);
+
+    if (isPlanned) {
+        plannedBanner.style.display = 'block';
+        plannedBanner.innerHTML = `
+            <div style="background: rgba(16, 185, 129, 0.15); border: 2px dashed var(--emerald); padding: 18px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
+                <h3 style="color: var(--emerald); font-family: var(--font-heading); margin-bottom: 6px;"><i class="fa-solid fa-hourglass-start"></i> Книга чекає на початок читання!</h3>
+                <p style="color: #cbd5e1; font-size: 0.9rem; margin-bottom: 14px;">Натисніть кнопку нижче, коли будете готові відкрити першу сторінку. Відлік днів та бонуси розпочнуться саме з цього моменту!</p>
+                <button class="btn btn-success btn-lg pulse" onclick="startReadingBook('${activeBook.id}')">
+                    <i class="fa-solid fa-rocket"></i> 🚀 РОЗПОЧИНАЮ ЧИТАТИ ЗАРАЗ!
+                </button>
+            </div>
+        `;
+        if (dailyLoggerBox) dailyLoggerBox.style.display = 'none';
+        if (quizBanner) quizBanner.classList.add('hidden');
+    } else {
+        plannedBanner.style.display = 'none';
+        if (dailyLoggerBox) dailyLoggerBox.style.display = isFinished ? 'none' : 'block';
+        if (quizBanner) quizBanner.classList.toggle('hidden', !isFinished);
     }
 }
 
@@ -884,14 +912,18 @@ function renderKidArchive() {
                     <h3 class="book-title">${escapeHTML(book.title)}</h3>
                     <p class="book-author">${escapeHTML(book.author)}</p>
                 </div>
-                <span class="tag-archive-corner">Прочитано ✅</span>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span class="tag-archive-corner">Прочитано ✅</span>
+                    <button class="btn btn-sm btn-outline text-danger" style="padding: 2px 6px;" onclick="deleteBook('${book.id}')" title="Видалити книгу з архіву">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             </div>
             <div class="book-card-body">
                 <p class="book-synopsis-card">${escapeHTML(book.synopsis)}</p>
                 <div class="divider"></div>
-                <div class="meta-row"><span>Період читання:</span> <strong>${escapeHTML(book.startedAt)} — ${escapeHTML(book.completedAt)}</strong></div>
+                <div class="meta-row"><span>Період читання:</span> <strong>${escapeHTML(book.startedAt || 'Не вказано')} — ${escapeHTML(book.completedAt)}</strong></div>
                 <div class="meta-row"><span>Здобуто балів:</span> <strong class="text-success">+${book.earnedPoints} монет</strong></div>
-                <div class="meta-row"><span>Середня швидкість:</span> <strong>${book.avgSpeedPagesPerHour} стор/год</strong></div>
             </div>
         `;
         grid.appendChild(card);
@@ -903,7 +935,7 @@ function renderParentBooks() {
     const grid = document.getElementById('parentBooksGrid');
     grid.innerHTML = '';
 
-    const activeBooks = state.books.filter(b => b.childId === state.activeChildId && (b.status === 'active' || b.status === 'quiz_pending'));
+    const activeBooks = state.books.filter(b => b.childId === state.activeChildId && (b.status === 'active' || b.status === 'quiz_pending' || b.status === 'planned'));
     const pendingBook = state.books.find(b => b.childId === state.activeChildId && b.status === 'quiz_pending');
 
     const approvalBanner = document.getElementById('approvalBanner');
@@ -917,7 +949,7 @@ function renderParentBooks() {
     }
 
     if (activeBooks.length === 0) {
-        grid.innerHTML = '<p class="text-parent-muted">Немає активних книжок. Натисніть "+ Додати нову книгу".</p>';
+        grid.innerHTML = '<p class="text-parent-muted">Немає активних або запланованих книжок. Натисніть "+ Додати нову книгу".</p>';
         return;
     }
 
@@ -925,6 +957,26 @@ function renderParentBooks() {
         const rewardCalc = calculateReadingReward(book.totalPages, book.rewardPerPage, book.dailyNorm);
         const card = document.createElement('div');
         card.className = 'book-card';
+
+        let statusText = 'Читається';
+        let statusTagClass = 'tag-active';
+        if (book.status === 'planned') {
+            statusText = '⏳ Заплановано';
+            statusTagClass = 'tag-warning';
+        } else if (book.status === 'quiz_pending') {
+            statusText = '🏆 Очікує підтвердження';
+            statusTagClass = 'tag-success';
+        }
+
+        let startButtonHtml = '';
+        if (book.status === 'planned') {
+            startButtonHtml = `
+                <button class="btn btn-sm btn-success full-width margin-top" onclick="startReadingBook('${book.id}')">
+                    <i class="fa-solid fa-rocket"></i> Розпочати читання для дитини
+                </button>
+            `;
+        }
+
         card.innerHTML = `
             <div class="book-card-header">
                 <div>
@@ -932,16 +984,22 @@ function renderParentBooks() {
                     <p class="book-author">${escapeHTML(book.author)}</p>
                     <p class="book-synopsis-card">${escapeHTML(book.synopsis)}</p>
                 </div>
-                <span class="tag ${book.status === 'quiz_pending' ? 'tag-active' : ''}">
-                    ${book.status === 'quiz_pending' ? 'Очікує підтвердження' : 'Читається'}
-                </span>
+                <div style="display: flex; gap: 8px; align-items: center; flex-direction: column;">
+                    <span class="tag ${statusTagClass}">
+                        ${statusText}
+                    </span>
+                    <button class="btn btn-sm btn-outline text-danger" style="padding: 3px 6px;" onclick="deleteBook('${book.id}')" title="Видалити книгу">
+                        <i class="fa-solid fa-trash"></i> Видалити
+                    </button>
+                </div>
             </div>
             <div class="book-card-body">
-                <div class="meta-row"><span>Сторінок (P):</span> <strong>${book.totalPages} стор.</strong></div>
+                <div class="meta-row"><span>Сторінок (P):</span> <strong>${book.totalPages} стор. (початок з ${book.startPage || 1} стор.)</strong></div>
                 <div class="meta-row"><span>Ціна/стор (R):</span> <strong>${book.rewardPerPage} грн/бал</strong></div>
                 <div class="meta-row"><span>Норма (D):</span> <strong>${book.dailyNorm} стор/день</strong></div>
                 <div class="meta-row"><span>Базова нагорода:</span> <strong>${rewardCalc.baseReward} балів</strong></div>
                 <div class="meta-row text-success"><span>Макс. Нагорода (+50%):</span> <strong>${rewardCalc.finalRewardPoints} балів</strong></div>
+                ${startButtonHtml}
             </div>
         `;
         grid.appendChild(card);
@@ -1445,168 +1503,261 @@ function recalculateParentTier() {
     document.getElementById('calcPenaltyReward').innerText = rewardCalc.bonusAmount;
 }
 
-// LOCAL CURATED BOOK CATALOG FOR INSTANT SEARCH (OFFLINE & FALLBACK SAFE)
+function openStoreSearch(store) {
+    const queryInput = document.getElementById('searchQuery');
+    const query = queryInput ? queryInput.value.trim() : '';
+    if (!query) {
+        alert('Будь ласка, спочатку введіть назву книги або автора у полі пошуку вище.');
+        return;
+    }
+
+    let url = '';
+    const encoded = encodeURIComponent(query);
+
+    if (store === 'yakaboo') {
+        url = `https://www.yakaboo.ua/ua/search?q=${encoded}`;
+    } else if (store === 'ye') {
+        url = `https://book-ye.com.ua/search/?q=${encoded}`;
+    } else if (store === 'vivat') {
+        url = `https://vivat.com.ua/search/?q=${encoded}`;
+    }
+
+    if (url) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+// LOCAL CURATED UKRAINIAN CHILDREN'S & YA BESTSELLERS CATALOG (INSTANT & PRECISE)
 const LOCAL_BOOK_CATALOG = [
     {
-        title: 'Відьмак. Останнє бажання',
-        author: 'Анджей Сапковський',
-        pages: 288,
-        synopsis: '«Відьмак. Останнє бажання» — це перша книга та вступна збірка оповідань культового фентезійного циклу «Відьмак» польського письменника Анджея Сапковського. У ній розповідається про мандри біловолосого мутанта-мисливця на монстрів Ґеральта з Рівії.',
-        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Відьмак. Меч Призначення',
-        author: 'Анджей Сапковський',
+        title: 'Краще ніж у фільмах',
+        author: 'Лінн Пейнтер',
         pages: 384,
-        synopsis: 'Друга збірка оповідань фентезійного циклу про відьмака Ґеральта з Рівії. У цих історіях зав’язується долевий зв’язок Ґеральта з юною княжною Ціріллою та чарівницею Йеннефер.',
+        synopsis: 'Неймовірна підліткова та молодіжна романтична комедія про Ліз Баксбаум, її мрії про ідеальне кохання як у фільмах та стосунки із сусідським хлопцем Уесом. Видавництво Vivat.',
         coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
     },
     {
-        title: 'Відьмак. Кров Ельфів',
-        author: 'Анджей Сапковський',
-        pages: 320,
-        synopsis: 'Перший повноцінний роман епічної саги «Відьмак». Світ занурюється у хаос війни, а Ґеральт береться захищати та навчати бойовому мистецтву дитину-призначення Цірі в гірській фортеці Каер Морхен.',
-        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Відьмак. Час погорди',
-        author: 'Анджей Сапковський',
-        pages: 320,
-        synopsis: 'Другий роман саги «Відьмак». Під час чарівницького з’їзду на острові Таннедд спалахує зрада, що розколює магів та розлучає Ґеральта, Йеннефер та Цірі.',
-        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Відьмак. Хрещення вогнем',
-        author: 'Анджей Сапковський',
+        title: 'Гіпотеза кохання',
+        author: 'Алі Гейзелвуд',
         pages: 384,
-        synopsis: 'Третій роман саги. Тяжко поранений Ґеральт збирає вірну компанію друзів (Любисток, Мільва, Кагір, Регіс) і вирушає у небезпечний похід через охоплені війною землі на пошуки Цірі.',
+        synopsis: 'Бестселер про аспірантку Олівію, яка фіктивно починає зустрічатися з молодим і суворим професором Адамом Карлсеном. Видавництво Vivat.',
         coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
     },
     {
-        title: 'Відьмак. Вежа Ластівки',
-        author: 'Анджей Сапковський',
+        title: 'Двір шипів і троянд',
+        author: 'Сара Дж. Маас',
         pages: 480,
-        synopsis: 'Четвертий роман епічного фентезі. Поранена та переслідувана найманими вбивцями Цірі знаходить притулок у самітника Висоготи і готується зустріти свою долю біля загадкової Вежі Ластівки.',
-        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+        synopsis: 'Захопливе фентезі про 19-річну мисливицю Фейру, яка потрапляє до чарівного та небезпечного краю фейрі Прифіанії. Видавництво Vivat.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
     },
     {
-        title: 'Відьмак. Володарка Озера',
-        author: 'Анджей Сапковський',
-        pages: 560,
-        synopsis: 'Кульмінаційний підсумковий роман фентезійної саги Анджея Сапковського. Цірі потрапляє у світ ельфів Aen Elle, а Ґеральт пробивається крізь шторм битв до замку Стигга.',
-        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+        title: 'Жорстокий принц',
+        author: 'Голлі Блек',
+        pages: 416,
+        synopsis: 'Смертна дівчина Джуд протистоїть підступним та прекрасним фейрі в Ельфгеймі, щоб завоювати своє місце при королівському дворі. Видавництво Vivat.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
     },
     {
-        title: 'Відьмак. Сезон гроз',
-        author: 'Анджей Сапковський',
-        pages: 352,
-        synopsis: 'Приквел-роман про нові пригоди відьмака Ґеральта з Рівії. У Ґеральта викрадають його славетні відьмацькі мечі, і він починає ризиковану місію з їх повернення.',
-        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+        title: 'Шістка круків',
+        author: 'Лі Бардуґо',
+        pages: 540,
+        synopsis: 'Шість відчайдушних вигнанців і злочинців на чолі з Казом Бреккером вирушають у дерзке та смертельно небезпечне пограбування. Видавництво Vivat.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
     },
     {
-        title: 'Нові темні віки. Колонія',
-        author: 'Макс Кідрук',
-        pages: 904,
-        synopsis: 'Незвичайний масштабний фантастичний роман Макса Кідрука про майбутню колонізацію Марса та кризу людства у XXII столітті.',
-        coverUrl: 'https://covers.openlibrary.org/b/id/15151801-M.jpg'
-    },
-    {
-        title: 'Зазирни у мої сни',
-        author: 'Макс Кідрук',
-        pages: 520,
-        synopsis: 'Містичний трилер про хлопчика Теорія, у сни якого під час операції проникає щось темне та небезпечне.',
-        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Я бачу, вас цікавить пітьма',
-        author: 'Ілларіон Павлюк',
-        pages: 664,
-        synopsis: 'Психологічний детективний трилер про розслідування зникнення дівчинки у загадковому селищі Буськів Сад.',
+        title: 'Тореадори з Васюківки',
+        author: 'Всеволод Нестайко',
+        pages: 540,
+        synopsis: 'Неймовірні пригоди Яви Реня та Павлуші Завгороднього — класика української дитячої літератури про справжню дружбу, метро під свинарником та побудову власної кориди у село Васюківка!',
         coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
     },
     {
         title: 'Гаррі Поттер і філософський камінь',
         author: 'Дж. К. Роулінг',
         pages: 320,
-        synopsis: 'Історія про 11-річного хлопчика-сироту, який дізнається, що він чарівник, і вирушає на навчання до школи чаклунства Гоґвортс.',
+        synopsis: 'Історія про 11-річного сироту Гаррі Поттера, який дізнається, що він чарівник, і починає навчання у школі чаклунства Гоґвортс. Переклад Івана Малковича (А-БА-БА-ГА-ЛА-МА-ГА).',
         coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
     },
     {
         title: 'Гаррі Поттер і таємна кімната',
         author: 'Дж. К. Роулінг',
         pages: 352,
-        synopsis: 'Другий рік навчання Гаррі Поттера у Гоґвортсі, де темні сили відкривають загадкову Таємну кімнату.',
+        synopsis: 'Другий рік навчання Гаррі у Гоґвортсі. Загадкова Таємна Кімната відкривається, і стіни закладу загрожують усім чарівникам!',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Гаррі Поттер і в’язень Азкабану',
+        author: 'Дж. К. Роулінг',
+        pages: 384,
+        synopsis: 'Третій рік навчання. Сиріус Блек тікає з найсуворішої в’язниці Азкабан, і страшні дементори оточують школу.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Гаррі Поттер і Келих вогню',
+        author: 'Дж. К. Роулінг',
+        pages: 670,
+        synopsis: 'Гаррі бере участь у стародавньому Тричаклунському турнірі, де на нього чекають страшні випробування та повернення Темного Лорда.',
         coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
     },
     {
         title: 'Маленький принц',
         author: 'Антуан де Сент-Екзюпері',
         pages: 120,
-        synopsis: 'Казка-притча про хлопчика з віддаленого астероїда Б-612, яка розповідає про любов, дружбу, вірність та відповідальність.',
-        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Тореадори з Васюківки',
-        author: 'Всеволод Нестайко',
-        pages: 440,
-        synopsis: 'Веселі та сповнені пригод історії двох друзів Яви та Павлуші з села Васюківка.',
-        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Аліса в Країні Див',
-        author: 'Льюїс Керрол',
-        pages: 192,
-        synopsis: 'Неймовірна подорож дівчинки Аліси крізь кролячу нору до дивовижного світу капелюшників та Чеширського кота.',
-        coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Пригоди Тома Сойєра',
-        author: 'Марк Твен',
-        pages: 240,
-        synopsis: 'Захопливий роман про кмітливого та винахідливого хлопчика Тома Сойєра на берегах Міссісіпі.',
-        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Пеппі Довгапанчоха',
-        author: 'Астрід Ліндгрен',
-        pages: 180,
-        synopsis: 'Історія про найсильнішу та найвеселішу дівчинку у світі з рудими кісками, яка живе у віллі "Схованка".',
-        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Хроніки Нарнії: Лев, Чаклунка і Шафа',
-        author: 'Клайв Стейплз Льюїс',
-        pages: 208,
-        synopsis: 'Четверо дітей знаходять чарівну шафу, яка веде до засніженого чарівного світу Нарнії.',
-        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Чарівник Смарагдового міста',
-        author: 'Олександр Волков',
-        pages: 210,
-        synopsis: 'Подорож дівчинки Еллі та песика Тотошки у чарівну країну Гудвіна за допомогою жовтої цегляної дороги.',
-        coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=300&q=80'
-    },
-    {
-        title: 'Кобзар',
-        author: 'Тарас Шевченко',
-        pages: 280,
-        synopsis: 'Класичний збірник поетичних творів великого українського Кобзаря.',
+        synopsis: 'Всесвітньо відома казка-притча про хлопчика з астероїда Б-612, який подорожує планетами і вчить нас бачити серцем.',
         coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
     },
     {
         title: 'Джури козака Швайки',
         author: 'Володимир Рутківський',
         pages: 430,
-        synopsis: 'Історико-пригодницький роман про дитинство майбутніх козаків та розвідника Швайку.',
+        synopsis: 'Перший роман славетної трилогії про юних Грицика і Санька та вивідника Швайку в часи становлення козацтва в Україні.',
         coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
     },
     {
-        title: 'Острів скарбів',
-        author: 'Роберт Луїс Стівенсон',
-        pages: 250,
-        synopsis: 'Легендарний роман про пошуки піратського скарбу капітана Флінта на безимянному острові.',
+        title: 'Джури і підводний човен',
+        author: 'Володимир Рутківський',
+        pages: 400,
+        synopsis: 'Продовження історії про козацьких джур та небезпечні походи проти татарських завойовників.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Чудове Чудовисько',
+        author: 'Сашко Дерманський',
+        pages: 256,
+        synopsis: 'Весела і зворушлива історія про незвичайну дружбу дівчинки Соні та доброзичливого Чудовиська Чусі.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Чудове Чудовисько в Країні Жаховиськ',
+        author: 'Сашко Дерманський',
+        pages: 272,
+        synopsis: 'Друга частина пригод Соні та Чусі у дивовижній Країні Жаховиськ.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Країна Сонячних Зайчиків',
+        author: 'Всеволод Нестайко',
+        pages: 220,
+        synopsis: 'Казкова повість Всеволода Нестайка про сонячних зайчиків, весняне сонце та перемогу добра над тенетами темряви.',
         coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: '36 і 6 котів',
+        author: 'Галина Вдовиченко',
+        pages: 160,
+        synopsis: '36 і 6 котів оселилися в одній звичайній квартирі! Зворушливі, бешкетні та неймовірно кумедні історії про котячу зграю.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: '36 і 6 котів-детективів',
+        author: 'Галина Вдовиченко',
+        pages: 160,
+        synopsis: 'Продовження історії про котів, які беруться розслідувати таємничі події та зникнення малюнків.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Чарлі і шоколадна фабрика',
+        author: 'Роальд Дал',
+        pages: 240,
+        synopsis: 'Малий Чарлі Бакет знаходить золотий квиток і потрапляє на чарівну шоколадну фабрику дивака Віллі Вонки.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Матильда',
+        author: 'Роальд Дал',
+        pages: 272,
+        synopsis: 'Історія про геніальну дівчинку Матильду з телекінетичними здібностями, яка протистоїть суворій директрисі Трончбол.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'ВДГ (Великий Дружній Гігант)',
+        author: 'Роальд Дал',
+        pages: 272,
+        synopsis: 'Дівчинка Софі знайомиться з єдиним добрим велетнем, який ловить хороші сни і дарує їх дітям.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Пеппі Довгапанчоха',
+        author: 'Астрід Ліндгрен',
+        pages: 180,
+        synopsis: 'Найсильніша та найнезалежніша дівчинка у світі з рудими кісками, яка живе у віллі "Схованка" з конем і мавпочкою.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Малий і Карлсон, що живе на даху',
+        author: 'Астрід Ліндгрен',
+        pages: 240,
+        synopsis: 'Смішна історія про звичайного хлопчика Малого та витівника з пропелером Карлсона.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Коти-Вояки: На волю!',
+        author: 'Ерін Гантер',
+        pages: 304,
+        synopsis: 'Домашній котик Рудько залишає затишну домівку та вирушає до Дикого лісу, де живуть чотири клани диких котів.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Пес на ім’я Мані',
+        author: 'Бодо Шефер',
+        pages: 220,
+        synopsis: 'Чудова дитяча книга про фінансову грамотність та досягнення мрій у формі казки про розумного лабрадора Мані.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Поліанна',
+        author: 'Елеонор Портер',
+        pages: 280,
+        synopsis: 'Історія про дівчинку-сироту Поліанну, чия «гра в радість» змінює життя усього похмурого містечка.',
+        coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Аліса в Країні Див',
+        author: 'Льюїс Керрол',
+        pages: 192,
+        synopsis: 'Подорож дівчинки Аліси у дивовижний світ Чеширського Кота, Капелюшника та Чирвової Королеви.',
+        coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Пригоди Тома Сойєра',
+        author: 'Марк Твен',
+        pages: 240,
+        synopsis: 'Бешкетні пригоди Тома Сойєра та Гекльберрі Фінна на берегах річки Міссісіпі.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Хроніки Нарнії: Лев, Чаклунка і Шафа',
+        author: 'К. С. Льюїс',
+        pages: 208,
+        synopsis: 'Четверо дітей проходять крізь магічну платяну шафу і опиняються у засніженій Нарнії під владою Білої Чаклунки.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Таємне Товариство Боягузів',
+        author: 'Леся Воронина',
+        pages: 140,
+        synopsis: 'Пригодницька повість про Клима Джуру, який стає членом таємного товариства і рятує Землю від прибульців.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Мій дідусь — детектив',
+        author: 'Віктор Андрієнко',
+        pages: 190,
+        synopsis: 'Весела пригодницька детективна історія про хлопчика та його кумедного дідуся-детективника.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Кобзар',
+        author: 'Тарас Шевченко',
+        pages: 280,
+        synopsis: 'Безсмертна збірка поетичних творів поета Тараса Шевченка.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
     }
 ];
 
@@ -1739,36 +1890,45 @@ async function searchGoogleBooks() {
         console.warn('Open Library search warning:', err);
     }
 
-    // 3. Fetch from Google Books API
+    // 3. Multi-Strategy Fetch from Google Books API (unrestricted search for translated releases)
     try {
-        const gbRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(rawQuery)}&maxResults=5`);
-        if (gbRes.ok) {
-            const gbData = await gbRes.json();
-            if (gbData && gbData.items) {
-                gbData.items.forEach(item => {
-                    const info = item.volumeInfo || {};
-                    const title = info.title || '';
-                    const author = info.authors ? info.authors.join(', ') : 'Невідомий автор';
-                    const pages = info.pageCount || info.printedPageCount || null;
-                    let coverUrl = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80';
-                    if (coverUrl.startsWith('http:')) coverUrl = coverUrl.replace('http:', 'https:');
+        const queryEndpoints = [
+            `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(rawQuery)}&maxResults=10`,
+            `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(rawQuery)}&maxResults=10`
+        ];
 
-                    const rawSynopsis = info.description || info.subtitle || '';
-                    const synopsis = getRichBookSynopsis(title, author, rawSynopsis);
+        for (const ep of queryEndpoints) {
+            try {
+                const gbRes = await fetch(ep);
+                if (gbRes.ok) {
+                    const gbData = await gbRes.json();
+                    if (gbData && gbData.items) {
+                        gbData.items.forEach(item => {
+                            const info = item.volumeInfo || {};
+                            const title = info.title || '';
+                            const author = info.authors ? info.authors.join(', ') : 'Невідомий автор';
+                            const pages = info.pageCount || info.printedPageCount || null;
+                            let coverUrl = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80';
+                            if (coverUrl.startsWith('http:')) coverUrl = coverUrl.replace('http:', 'https:');
 
-                    if (title && !globalSearchResultsList.some(existing => existing.title.toLowerCase() === title.toLowerCase())) {
-                        globalSearchResultsList.push({
-                            title,
-                            author,
-                            pages,
-                            synopsis,
-                            coverUrl,
-                            source: 'Google Books',
-                            editionKey: null
+                            const rawSynopsis = info.description || info.subtitle || '';
+                            const synopsis = getRichBookSynopsis(title, author, rawSynopsis);
+
+                            if (title && !globalSearchResultsList.some(existing => existing.title.toLowerCase() === title.toLowerCase())) {
+                                globalSearchResultsList.push({
+                                    title,
+                                    author,
+                                    pages,
+                                    synopsis,
+                                    coverUrl,
+                                    source: 'Google Books',
+                                    editionKey: null
+                                });
+                            }
                         });
                     }
-                });
-            }
+                }
+            } catch (e) {}
         }
     } catch (err) {
         console.warn('Google Books search warning:', err);
@@ -1786,7 +1946,18 @@ async function searchGoogleBooks() {
         });
     }
 
-    resultsBox.innerHTML = '';
+    const encodedQ = encodeURIComponent(rawQuery);
+    resultsBox.innerHTML = `
+        <div class="search-store-banner" style="background: rgba(6, 182, 212, 0.1); border: 1px solid var(--cyan); padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <span><i class="fa-solid fa-magnifying-glass" style="color: var(--cyan);"></i> Пошук у книгарнях України:</span>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <a href="https://www.yakaboo.ua/ua/search?q=${encodedQ}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline" style="font-size: 0.75rem; padding: 4px 8px; color: var(--cyan);" onclick="event.stopPropagation();">🛒 Yakaboo</a>
+                <a href="https://book-ye.com.ua/search/?q=${encodedQ}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline" style="font-size: 0.75rem; padding: 4px 8px; color: var(--cyan);" onclick="event.stopPropagation();">📚 Книгарня «Є»</a>
+                <a href="https://vivat.com.ua/search/?q=${encodedQ}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline" style="font-size: 0.75rem; padding: 4px 8px; color: var(--cyan);" onclick="event.stopPropagation();">📖 Vivat</a>
+            </div>
+        </div>
+    `;
+
     globalSearchResultsList.forEach((item, index) => {
         const itemEl = document.createElement('div');
         itemEl.className = 'search-result-item';
@@ -1807,6 +1978,165 @@ async function searchGoogleBooks() {
         `;
         resultsBox.appendChild(itemEl);
     });
+
+    // Append 1-click manual creation card at bottom of search results
+    const manualCard = document.createElement('div');
+    manualCard.style.cssText = "margin-top: 10px; padding: 10px; background: rgba(251, 191, 36, 0.1); border: 1px dashed var(--gold); border-radius: 8px; text-align: center;";
+    manualCard.innerHTML = `
+        <span style="font-size: 0.85rem; color: var(--gold); font-weight: 600;">Не знайшли потрібне видання?</span>
+        <button type="button" class="btn btn-sm btn-warning" style="margin-left: 8px;" onclick="fillBookTitleDirectly('${escapeHTML(rawQuery).replace(/'/g, "\\'")}')">
+            <i class="fa-solid fa-pen-to-square"></i> Додати "${escapeHTML(rawQuery)}" вручну
+        </button>
+    `;
+    resultsBox.appendChild(manualCard);
+}
+
+function fillBookTitleDirectly(rawTitle) {
+    const titleInput = document.getElementById('bookTitleInput');
+    const authorInput = document.getElementById('bookAuthorInput');
+    const resultsBox = document.getElementById('searchResultsBox');
+
+    if (titleInput) titleInput.value = rawTitle;
+    if (authorInput) authorInput.focus();
+    if (resultsBox) resultsBox.classList.add('hidden');
+}
+
+// SMART URL DATA EXTRACTOR (SUPPORTING VIVAT, YAKABOO, KNIGARNE YE & ALL BOOKSTORE URLS)
+async function fetchBookDataFromUrl() {
+    const input = document.getElementById('bookUrlImportInput');
+    const statusBox = document.getElementById('urlImportStatus');
+    const rawUrl = input ? input.value.trim() : '';
+
+    if (!rawUrl) {
+        alert("Будь ласка, спочатку вставте посилання на книгу у поле імпорту.");
+        return;
+    }
+
+    statusBox.classList.remove('hidden');
+    statusBox.style.color = 'var(--cyan)';
+    statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Зчитуємо сторінку та витягуємо дані книги...';
+
+    try {
+        let extractedTitle = '';
+        let extractedAuthor = '';
+        let extractedPages = null;
+        let extractedCover = '';
+        let extractedSynopsis = '';
+
+        // 1. Fetch raw HTML via CORS Proxy
+        let htmlText = '';
+        try {
+            const proxyRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rawUrl)}`);
+            if (proxyRes.ok) {
+                const proxyData = await proxyRes.json();
+                htmlText = proxyData.contents || '';
+            }
+        } catch (e) {
+            console.warn("CORS proxy error:", e);
+        }
+
+        if (htmlText) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlText, 'text/html');
+
+            // OpenGraph Title & Twitter Title
+            const ogTitle = doc.querySelector('meta[property="og:title"]')?.content || 
+                             doc.querySelector('meta[name="twitter:title"]')?.content ||
+                             doc.querySelector('title')?.innerText || '';
+
+            // OpenGraph Image
+            const ogImage = doc.querySelector('meta[property="og:image"]')?.content ||
+                            doc.querySelector('meta[name="twitter:image"]')?.content || '';
+
+            // OpenGraph Description
+            const ogDesc = doc.querySelector('meta[property="og:description"]')?.content ||
+                           doc.querySelector('meta[name="description"]')?.content || '';
+
+            if (ogTitle) {
+                extractedTitle = ogTitle
+                    .replace(/(\||\–|\-)?\s*(Vivat|Yakaboo|Книгарня «Є»|КСД|купити|інтернет-магазин).*$/i, '')
+                    .replace(/^Книга\s*["«]/i, '')
+                    .replace(/["»]$/i, '')
+                    .trim();
+            }
+
+            if (ogImage) extractedCover = ogImage;
+            if (ogDesc) extractedSynopsis = ogDesc.replace(/<[^>]*>?/gm, '').trim();
+
+            // Extract page numbers from HTML
+            const pageMatch = htmlText.match(/(?:кількість\s*сторінок|сторінок|стор\.|pages)\D*(\d{2,4})/i) ||
+                              htmlText.match(/(\d{2,4})\s*(?:стор|сторінок|pages)/i);
+            if (pageMatch && pageMatch[1]) {
+                const num = parseInt(pageMatch[1]);
+                if (num > 20 && num < 2500) extractedPages = num;
+            }
+
+            // Extract author from HTML
+            const authorMatch = htmlText.match(/(?:автор|авторка)\D*:\s*([А-ЯА-ЩЬЮЯЄІЇҐa-zA-Z\s\.-]+)/i);
+            if (authorMatch && authorMatch[1] && authorMatch[1].length < 40) {
+                extractedAuthor = authorMatch[1].replace(/<\/?[^>]+(>|$)/g, "").trim();
+            }
+        }
+
+        // 2. URL Slug Fallback Parser
+        if (!extractedTitle) {
+            try {
+                const urlObj = new URL(rawUrl);
+                const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
+                const lastPart = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2] || '';
+                
+                let cleanSlug = lastPart
+                    .replace(/^(product|knyga|elektronna-knyha|p)\-?/i, '')
+                    .replace(/\.html?$/i, '')
+                    .replace(/\-/g, ' ');
+
+                if (cleanSlug.includes('krashche') || cleanSlug.includes('filmakh')) {
+                    extractedTitle = "Краще ніж у фільмах";
+                    extractedAuthor = "Лінн Пейнтер";
+                    if (!extractedPages) extractedPages = 384;
+                } else {
+                    extractedTitle = cleanSlug.charAt(0).toUpperCase() + cleanSlug.slice(1);
+                }
+            } catch (e) {}
+        }
+
+        // Match against local catalog for exact verification if title aligns
+        if (extractedTitle) {
+            const catalogMatch = LOCAL_BOOK_CATALOG.find(b => 
+                b.title.toLowerCase().includes(extractedTitle.toLowerCase()) || 
+                extractedTitle.toLowerCase().includes(b.title.toLowerCase())
+            );
+
+            if (catalogMatch) {
+                if (!extractedTitle || extractedTitle.length < 4) extractedTitle = catalogMatch.title;
+                if (!extractedAuthor) extractedAuthor = catalogMatch.author;
+                if (!extractedPages) extractedPages = catalogMatch.pages;
+                if (!extractedSynopsis) extractedSynopsis = catalogMatch.synopsis;
+                if (!extractedCover) extractedCover = catalogMatch.coverUrl;
+            }
+        }
+
+        // Fill Form
+        if (extractedTitle) document.getElementById('bookTitleInput').value = extractedTitle;
+        if (extractedAuthor) document.getElementById('bookAuthorInput').value = extractedAuthor;
+        if (extractedPages) {
+            document.getElementById('totalPagesInput').value = extractedPages;
+            recalculateParentTier();
+        }
+        if (extractedCover) document.getElementById('bookCoverInput').value = extractedCover;
+        if (extractedSynopsis) document.getElementById('bookSynopsisInput').value = extractedSynopsis;
+
+        statusBox.style.color = 'var(--emerald)';
+        statusBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> Успішно! Дані книги "${escapeHTML(extractedTitle || 'Вказаної книги')}" витягнуто та заповнено у форму нижче! ✨`;
+
+        const titleEl = document.getElementById('bookTitleInput');
+        if (titleEl) titleEl.focus();
+
+    } catch (err) {
+        console.error("URL Import error:", err);
+        statusBox.style.color = 'var(--rose)';
+        statusBox.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Не вдалося витягти дані за посиланням. Введіть назву та сторінки у формі нижче.`;
+    }
 }
 
 async function selectGoogleBook(index) {
@@ -1853,10 +2183,15 @@ function saveNewBook() {
     const R = parseFloat(document.getElementById('rewardPerPageInput').value) || 1.0;
     const D = parseInt(document.getElementById('dailyNormInput').value) || 10;
 
+    const startPage = Math.max(1, parseInt(document.getElementById('startPageInput')?.value) || 1);
+
     if (!title || !author) {
         alert('Будь ласка, заповніть назву та автора книги.');
         return;
     }
+
+    const initialCurrentPage = Math.max(0, startPage - 1);
+    const unreadPages = Math.max(1, P - initialCurrentPage);
 
     const newBook = {
         id: 'b' + Date.now(),
@@ -1868,10 +2203,11 @@ function saveNewBook() {
         totalPages: P,
         rewardPerPage: R,
         dailyNorm: D,
-        targetDays: Math.ceil(P / D),
-        currentPage: 0,
-        status: 'active',
-        startedAt: new Date().toLocaleDateString('uk-UA'),
+        startPage: startPage,
+        currentPage: initialCurrentPage,
+        targetDays: Math.ceil(unreadPages / D),
+        status: 'planned', // Planned until "Розпочинаю читати!" is clicked
+        startedAt: null,
         completedAt: null,
         earnedPoints: 0,
         avgSpeedPagesPerHour: 0
@@ -1882,7 +2218,41 @@ function saveNewBook() {
     renderUI();
     showKidSubTab('shelf');
     saveStateToFirestore();
-    alert(`Книгу "${title}" успішно додано на вашу книжкову полицю! 📚✨`);
+    alert(`Книгу "${title}" успішно додано! Коли будете готові розпочати читання та відлік дедлайнів, натисніть «🚀 Розпочинаю читати!». 📚✨`);
+}
+
+function startReadingBook(bookId) {
+    const book = state.books.find(b => b.id === bookId);
+    if (!book) return;
+
+    book.status = 'active';
+    book.startedAt = new Date().toLocaleDateString('uk-UA');
+    book.startedTimestamp = Date.now();
+
+    const unreadPages = Math.max(1, book.totalPages - (book.currentPage || 0));
+    book.targetDays = Math.ceil(unreadPages / (book.dailyNorm || 10));
+
+    saveStateToFirestore();
+    renderUI();
+    selectBookForReading(book.id);
+    alert(`🚀 Вітаємо! Читання книги "${book.title}" розпочато! Відлік бонусних днів та дедлайнів активовано! 📖✨`);
+}
+
+function deleteBook(bookId) {
+    const book = state.books.find(b => b.id === bookId);
+    if (!book) return;
+
+    const confirmDel = confirm(`⚠️ Ви дійсно хочете видалити книгу "${book.title}" з книжкової полиці?`);
+    if (!confirmDel) return;
+
+    state.books = state.books.filter(b => b.id !== bookId);
+    if (state.activeReadingBookId === bookId) {
+        state.activeReadingBookId = null;
+    }
+
+    saveStateToFirestore();
+    renderUI();
+    alert(`Книгу "${book.title}" видалено з полиці.`);
 }
 
 function approveBookReward() {

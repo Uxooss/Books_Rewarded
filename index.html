@@ -612,11 +612,42 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Пошук книги в мережі (Google Books API):</label>
+                    <label>Пошук книги в каталозі та мережі (Google Books):</label>
                     <div class="search-input-group">
-                        <input type="text" id="searchQuery" placeholder="Введіть назву книги (наприклад: Гаррі Поттер)..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); searchGoogleBooks(); }">
+                        <input type="text" id="searchQuery" placeholder="Введіть назву книги (наприклад: Тореадори з Васюківки)..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); searchGoogleBooks(); }">
                         <button class="btn btn-primary" onclick="searchGoogleBooks()"><i class="fa-solid fa-search" aria-hidden="true"></i> Пошук</button>
                     </div>
+                    <div class="store-search-shortcuts margin-top">
+                        <span class="store-shortcuts-label" style="font-size:0.8rem; color:#94a3b8;"><i class="fa-solid fa-store" aria-hidden="true"></i> Відкрити пошук у книгарнях України:</span>
+                        <div class="store-buttons-row" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('yakaboo')" title="Шукати у магазині Yakaboo.ua">
+                                🛒 Yakaboo.ua
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('ye')" title="Шукати у Книгарні «Є»">
+                                📚 Книгарня «Є»
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('vivat')" title="Шукати у Vivat.com.ua">
+                                📖 Vivat
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SMART URL IMPORT FROM ANY BOOKSTORE -->
+                <div class="form-group margin-top" style="background: rgba(6, 182, 212, 0.08); border: 1px solid var(--cyan); border-radius: 8px; padding: 12px;">
+                    <label style="color: var(--cyan); font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-link" aria-hidden="true"></i> Додати книгу за посиланням з магазину / видавництва:
+                    </label>
+                    <p style="font-size: 0.78rem; color: #94a3b8; margin: 4px 0 8px 0;">
+                        Вставте посилання на товар з Vivat, Yakaboo, Книгарні «Є» чи будь-якого сайту — дані автоматично заповняться!
+                    </p>
+                    <div class="search-input-group">
+                        <input type="url" id="bookUrlImportInput" placeholder="https://vivat.com.ua/product/elektronna-knyha-krashche-nizh-u-filmakh/..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); fetchBookDataFromUrl(); }">
+                        <button class="btn btn-warning" type="button" onclick="fetchBookDataFromUrl()">
+                            <i class="fa-solid fa-bolt" aria-hidden="true"></i> Витягти дані
+                        </button>
+                    </div>
+                    <div id="urlImportStatus" class="hidden margin-top" style="font-size: 0.82rem;"></div>
                 </div>
 
                 <div id="searchResultsBox" class="search-results-box hidden"></div>
@@ -651,6 +682,10 @@
                     <div class="form-group">
                         <label>Денна норма сторінок (D)</label>
                         <input type="number" id="dailyNormInput" value="12" min="1" oninput="recalculateParentTier()">
+                    </div>
+                    <div class="form-group">
+                        <label>З якої сторінки читаєте? (за замовчуванням 1)</label>
+                        <input type="number" id="startPageInput" value="1" min="1" placeholder="1">
                     </div>
                 </div>
 
