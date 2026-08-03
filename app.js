@@ -470,14 +470,13 @@ function renderKidArchive() {
     archivedBooks.forEach(book => {
         const card = document.createElement('div');
         card.className = 'book-card';
-        card.style.position = 'relative';
         card.innerHTML = `
-            <span class="tag-archive-corner" style="position: absolute; top: 20px; right: 20px; background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.4); padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 0.85rem; z-index: 10;">Прочитано ✅</span>
             <div class="book-card-header">
                 <div>
                     <h3 class="book-title">${escapeHTML(book.title)}</h3>
                     <p class="book-author">${escapeHTML(book.author)}</p>
                 </div>
+                <span class="tag-archive-corner">Прочитано ✅</span>
             </div>
             <div class="book-card-body">
                 <p class="book-synopsis-card">${escapeHTML(book.synopsis)}</p>
@@ -555,14 +554,13 @@ function renderParentArchive() {
     archivedBooks.forEach(book => {
         const card = document.createElement('div');
         card.className = 'book-card';
-        card.style.position = 'relative';
         card.innerHTML = `
-            <span class="tag-archive-corner" style="position: absolute; top: 20px; right: 20px; background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.4); padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 0.85rem; z-index: 10;">Прочитано ✅</span>
             <div class="book-card-header">
                 <div>
                     <h3 class="book-title">${escapeHTML(book.title)}</h3>
                     <p class="book-author">${escapeHTML(book.author)}</p>
                 </div>
+                <span class="tag-archive-corner">Прочитано ✅</span>
             </div>
             <div class="book-card-body">
                 <div class="meta-row"><span>Дата початку:</span> <strong>${escapeHTML(book.startedAt)}</strong></div>
