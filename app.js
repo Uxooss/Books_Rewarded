@@ -1,112 +1,26 @@
 // State Management
 const state = {
-    currentRole: 'kid', // Kid view opens first by default
+    currentRole: 'kid',
     parentPin: '1234',
-    activeChildId: 'c1',
+    activeChildId: null,
     activeReadingBookId: null,
     activeKidSubTab: 'shelf',
-    newChildAvatarSeed: 'Polina',
+    newChildAvatarSeed: 'Sofia',
     bookshelf: {
         searchQuery: '',
         statusFilter: 'all',
         sortBy: 'progress_desc',
-        viewMode: 'grid' // 'grid' | 'compact' | 'list'
+        viewMode: 'grid'
     },
-    children: [
-        {
-            id: 'c1',
-            name: 'Поліна',
-            nickname: 'Поліна 👧',
-            age: 8,
-            avatarSeed: 'Polina',
-            avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Polina',
-            balance: 450.00,
-            streak: 5,
-            achievements: {
-                record_reader: {
-                    id: 'record_reader',
-                    title: 'Супер-читач дня 🏆',
-                    description: 'Рекорд прочитаних сторінок за день!',
-                    unlocked: false,
-                    claimed: false,
-                    rewardCoins: 50,
-                    recordPages: 0
-                }
-            }
-        }
-    ],
+    children: [],
     timer: {
         intervalId: null,
         secondsElapsed: 0,
         isRunning: false,
         lastSpeedMetrics: null
     },
-    notifications: [
-        {
-            id: 'n1',
-            icon: 'fa-trophy',
-            title: 'Квіз пройдено (100%)!',
-            message: 'Поліна відповіла на 5 з 5 запитань для книги "Маленький принц".',
-            time: '10 хвилин тому',
-            unread: true
-        }
-    ],
-    books: [
-        {
-            id: 'b1',
-            childId: 'c1',
-            title: 'Маленький принц',
-            author: 'Антуан де Сент-Екзюпері',
-            synopsis: 'Казка-притча про хлопчика з віддаленого астероїда Б-612, яка розповідає про любов, дружбу, вірність та відповідальність.',
-            coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80',
-            totalPages: 120,
-            rewardPerPage: 2.5, // 2.5 грн/бал
-            dailyNorm: 12,       // T = 10 днів
-            targetDays: 10,
-            currentPage: 120,    // 100% completed
-            status: 'quiz_pending', // Waiting for approval after quiz
-            startedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toLocaleDateString('uk-UA'),
-            completedAt: new Date().toLocaleDateString('uk-UA'),
-            earnedPoints: 450,
-            avgSpeedPagesPerHour: 40.0
-        },
-        {
-            id: 'b2',
-            childId: 'c1',
-            title: 'Тореадори з Васюківки',
-            author: 'Всеволод Нестайко',
-            synopsis: 'Веселі та сповнені пригод історії двох друзів Яви та Павлуші з села Васюківка.',
-            coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80',
-            totalPages: 440,
-            rewardPerPage: 1.0,
-            dailyNorm: 44,      // T = 10 днів
-            targetDays: 10,
-            currentPage: 180,
-            status: 'active',
-            startedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toLocaleDateString('uk-UA'),
-            completedAt: null,
-            earnedPoints: 0,
-            avgSpeedPagesPerHour: 35.0
-        },
-        {
-            id: 'b3',
-            childId: 'c1',
-            title: 'Гаррі Поттер і філософський камінь',
-            author: 'Дж. К. Роулінг',
-            synopsis: 'Історія про 11-річного хлопчика-сироту, який дізнається, що він чарівник, і вирушає на навчання до Гоґвортсу.',
-            coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80',
-            totalPages: 320,
-            rewardPerPage: 1.0,
-            dailyNorm: 32,
-            targetDays: 10,
-            currentPage: 320,
-            status: 'archived',
-            startedAt: '10.07.2026',
-            completedAt: '18.07.2026',
-            earnedPoints: 480,
-            avgSpeedPagesPerHour: 45.0
-        }
-    ],
+    notifications: [],
+    books: [],
     activeQuiz: {
         bookId: null,
         questionIndex: 0,
@@ -114,34 +28,10 @@ const state = {
         score: 0,
         questions: [
             {
-                question: 'З якої планети прилетів Маленький принц?',
-                options: ['Астероїд Б-612', 'Марс', 'Юпітер-7', 'Комета Галлея'],
+                question: 'Це демо-питання. Додайте книгу та пройдіть квіз.',
+                options: ['Відповідь A', 'Відповідь B', 'Відповідь C', 'Відповідь D'],
                 correctIndex: 0,
-                explanation: 'Маленький принц жив на крихітному астероїді Б-612.'
-            },
-            {
-                question: 'Кого Маленький принц попросив намалювати льотчика?',
-                options: ['Квітку', 'Баранця', 'Лиса', 'Змію'],
-                correctIndex: 1,
-                explanation: 'Його першим проханням було: "Намалюй мені баранця!".'
-            },
-            {
-                question: 'Яка рослина загрожувала планеті Маленького принца?',
-                options: ['Кактуси', 'Дуби', 'Баобаби', 'Троянди'],
-                correctIndex: 2,
-                explanation: 'Паростки баобабів могли розірвати його маленьку планету.'
-            },
-            {
-                question: 'Кому належить вислів: "Ти назавжди відповідаєш за тих, кого приручив"?',
-                options: ["Королю", "Лисеняті (Лису)", "Троянді", "П'яничці"],
-                correctIndex: 1,
-                explanation: 'Саме Лис відкрив цю секретну мудрість Маленькому принцу.'
-            },
-            {
-                question: 'Що робив Король на своїй першій планеті?',
-                options: ['Рахував зірки', 'Правив усім і всіма', 'Запалював ліхтарі', 'Малював карти'],
-                correctIndex: 1,
-                explanation: 'Король вважав, що віддає розумні накази всім у Всесвіті.'
+                explanation: 'Це приклад пояснення відповіді.'
             }
         ]
     }
