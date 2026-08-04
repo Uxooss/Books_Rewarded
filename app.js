@@ -78,20 +78,24 @@ function initFirebase() {
                 auth.onAuthStateChanged(async (user) => {
                     if (user) {
                         authState.user = user;
-                        await loadUserFamilyData(user.uid);
+                        if (!isKidOnlyUrlMode) {
+                            await loadUserFamilyData(user.uid);
+                        }
                     } else {
                         authState.user = null;
-                        authState.familyName = '';
-                        currentFamilyId = null;
-                        if (unsubscribeFirestore) {
-                            unsubscribeFirestore();
-                            unsubscribeFirestore = null;
+                        if (!isKidOnlyUrlMode) {
+                            authState.familyName = '';
+                            currentFamilyId = null;
+                            if (unsubscribeFirestore) {
+                                unsubscribeFirestore();
+                                unsubscribeFirestore = null;
+                            }
+                            state.children = [];
+                            state.books = [];
+                            state.notifications = [];
+                            state.activeChildId = null;
+                            renderUI();
                         }
-                        state.children = [];
-                        state.books = [];
-                        state.notifications = [];
-                        state.activeChildId = null;
-                        renderUI();
                     }
                 });
             } else {
@@ -409,6 +413,7 @@ function setActiveChild(childId) {
 }
 
 let isKidOnlyUrlMode = false;
+let isKidLinkDataLoaded = false;
 
 // Check if page was opened via a Child Share Link (?familyId=...&childId=...)
 function checkUrlKidLink() {
@@ -421,6 +426,7 @@ function checkUrlKidLink() {
         state.activeChildId = childId;
         state.currentRole = 'kid';
         isKidOnlyUrlMode = true;
+        isKidLinkDataLoaded = false;
 
         if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== "YOUR_API_KEY") {
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -430,23 +436,32 @@ function checkUrlKidLink() {
             if (unsubscribeFirestore) unsubscribeFirestore();
             unsubscribeFirestore = db.collection('families').doc(familyId).onSnapshot(
                 doc => {
+                    isKidLinkDataLoaded = true;
                     if (doc.exists) {
                         const famData = doc.data();
                         state.parentPin = famData.parentPin || '1234';
                         state.children = famData.children || [];
                         state.books = famData.books || [];
                         state.notifications = famData.notifications || [];
-                        state.activeChildId = childId;
+                        
+                        if (childId && state.children.some(c => String(c.id) === String(childId))) {
+                            state.activeChildId = childId;
+                        } else if (state.children.length > 0) {
+                            state.activeChildId = state.children[0].id;
+                        }
                         renderUI();
                     } else {
                         console.warn("Родинний документ за цим посиланням не знайдено.");
+                        renderUI();
                     }
                 },
                 err => {
+                    isKidLinkDataLoaded = true;
                     console.error("Помилка доступу за посиланням дитини:", err);
                     if (err.code === 'permission-denied') {
                         alert("⚠️ Помилка доступу до баз даних у Firebase.\n\nОновіть правила безпеки (Rules) у Firestore Console на 'allow read, write: if true;' для колекції families.");
                     }
+                    renderUI();
                 }
             );
         }
@@ -604,6 +619,13 @@ function renderUI() {
         const btnKid = document.getElementById('btnRoleKid');
         if (btnParent) btnParent.classList.remove('hidden');
         if (btnKid) btnKid.classList.add('hidden');
+
+        if (!isKidLinkDataLoaded && state.children.length === 0) {
+            if (noChildView) noChildView.classList.remove('active');
+            if (kidView) kidView.classList.remove('active');
+            if (parentView) parentView.classList.remove('active');
+            return;
+        }
 
         if (state.children.length === 0) {
             if (noChildView) noChildView.classList.add('active');
