@@ -1582,16 +1582,31 @@ function openStoreSearch(store) {
         return;
     }
 
-    let url = '';
     const encoded = encodeURIComponent(query);
+    const storeUrls = {
+        yakaboo: `https://www.yakaboo.ua/ua/catalogsearch/result/?q=${encoded}`,
+        ye: `https://book-ye.com.ua/search/?q=${encoded}`,
+        vivat: `https://vivat.com.ua/search/?q=${encoded}`,
+        readeat: `https://readeat.com/search?q=${encoded}`,
+        starylev: `https://starylev.com.ua/search?query=${encoded}`,
+        ksd: `https://bookclub.ua/search/search_list.html?text=${encoded}`,
+        knigoland: `https://knigoland.com.ua/search?q=${encoded}`,
+        bukva: `https://bukva.ua/ua/search/index?q=${encoded}`,
+        nashformat: `https://nashformat.ua/search?q=${encoded}`,
+        ababahalamaha: `https://store.ababahalamaha.com.ua/index.php?route=product/search&search=${encoded}`,
+        bookchef: `https://bookchef.ua/search/?q=${encoded}`,
+        kmbooks: `https://kmbooks.com.ua/catalog?search=${encoded}`,
+        knigolove: `https://knigolove.ua/search?q=${encoded}`,
+        fabula: `https://fabulabook.com/?s=${encoded}`,
+        ridnamova: `https://ridna-mova.com/catalogsearch/result/?q=${encoded}`,
+        bohdan: `https://bohdan-books.com/search/?q=${encoded}`,
+        astrolabium: `https://astrolabium.com.ua/search?q=${encoded}`,
+        ranok: `https://www.ranok.com.ua/search.html?q=${encoded}`,
+        bookua: `https://book.ua/search?q=${encoded}`,
+        bookopt: `https://bookopt.com.ua/catalogsearch/result/?q=${encoded}`
+    };
 
-    if (store === 'yakaboo') {
-        url = `https://www.yakaboo.ua/ua/search?q=${encoded}`;
-    } else if (store === 'ye') {
-        url = `https://book-ye.com.ua/search/?q=${encoded}`;
-    } else if (store === 'vivat') {
-        url = `https://vivat.com.ua/search/?q=${encoded}`;
-    }
+    const url = storeUrls[store];
 
     if (url) {
         const link = document.createElement('a');

@@ -618,17 +618,41 @@
                         <button class="btn btn-primary" onclick="searchGoogleBooks()"><i class="fa-solid fa-search" aria-hidden="true"></i> Пошук</button>
                     </div>
                     <div class="store-search-shortcuts margin-top">
-                        <span class="store-shortcuts-label" style="font-size:0.8rem; color:#94a3b8;"><i class="fa-solid fa-store" aria-hidden="true"></i> Відкрити пошук у книгарнях України:</span>
-                        <div class="store-buttons-row" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
-                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('yakaboo')" title="Шукати у магазині Yakaboo.ua">
-                                🛒 Yakaboo.ua
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('ye')" title="Шукати у Книгарні «Є»">
-                                📚 Книгарня «Є»
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('vivat')" title="Шукати у Vivat.com.ua">
-                                📖 Vivat
-                            </button>
+                        <span class="store-shortcuts-label" style="font-size:0.8rem; color:#94a3b8; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-store" style="color: var(--gold);" aria-hidden="true"></i> Швидкий пошук у книгарнях України (Made in Ukraine):
+                        </span>
+                        <div class="store-buttons-row" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('yakaboo')" title="Шукати у Yakaboo.ua">🛒 Yakaboo</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('ye')" title="Шукати у Книгарні «Є»">📚 Книгарня «Є»</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('vivat')" title="Шукати у Vivat">📖 Vivat</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('readeat')" title="Шукати у Readeat">☕ Readeat</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('starylev')" title="Шукати у Видавництві Старого Лева">🦁 ВСЛ</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="openStoreSearch('ksd')" title="Шукати у Клуб Сімейного Дозвілля">🏰 КСД</button>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 8px; align-items: center;">
+                            <select id="allStoresDropdown" style="font-size: 0.82rem; padding: 7px 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 8px; width: 100%; cursor: pointer;" onchange="if(this.value){ openStoreSearch(this.value); this.value=''; }">
+                                <option value="">-- Обрати іншу книгарню з переліку (20+ книгарень України) --</option>
+                                <option value="yakaboo">🛒 Yakaboo.ua</option>
+                                <option value="ye">📚 Книгарня «Є»</option>
+                                <option value="vivat">📖 Vivat</option>
+                                <option value="readeat">☕ Readeat.com</option>
+                                <option value="starylev">🦁 Видавництво Старого Лева (ВСЛ)</option>
+                                <option value="ksd">🏰 Клуб Сімейного Дозвілля (КСД)</option>
+                                <option value="knigoland">🧸 Книголенд</option>
+                                <option value="bukva">📕 Книгарня «Буква»</option>
+                                <option value="nashformat">🚀 Наш Формат</option>
+                                <option value="ababahalamaha">🧙 А-БА-БА-ГА-ЛА-МА-ГА</option>
+                                <option value="bookchef">👨‍🍳 BookChef</option>
+                                <option value="kmbooks">📗 KM Books</option>
+                                <option value="knigolove">❤️ Книголав</option>
+                                <option value="fabula">✨ Фабула</option>
+                                <option value="ridnamova">🇺🇦 Рідна Мова</option>
+                                <option value="bohdan">📚 Навчальна книга — Богдан</option>
+                                <option value="astrolabium">🌌 Астролябія</option>
+                                <option value="ranok">☀️ Видавництво «Ранок»</option>
+                                <option value="bookua">📖 Book.ua</option>
+                                <option value="bookopt">📦 BookOpt</option>
+                            </select>
                         </div>
                     </div>
                 </div>
