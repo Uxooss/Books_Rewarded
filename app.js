@@ -25,6 +25,27 @@ const authState = {
     familyName: ''
 };
 
+// GLOBAL FLIPPING BOOK LOADER HELPER
+function showGlobalLoader(message = 'Завантажуємо сторінки книги...') {
+    const overlay = document.getElementById('globalLoaderOverlay');
+    const text = document.getElementById('globalLoaderText');
+    if (text) text.innerText = message;
+    if (overlay) {
+        overlay.classList.remove('hidden');
+        overlay.classList.add('active');
+    }
+}
+
+function hideGlobalLoader() {
+    const overlay = document.getElementById('globalLoaderOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+        setTimeout(() => {
+            overlay.classList.add('hidden');
+        }, 300);
+    }
+}
+
 // State Management
 const state = {
     currentRole: 'kid',
@@ -255,6 +276,7 @@ async function handleAuthSubmit(e) {
 
 async function loadUserFamilyData(uid) {
     if (!db) return;
+    showGlobalLoader('Синхронізуємо книги та профайли родини...');
     try {
         currentFamilyId = uid;
         const famDocRef = db.collection('families').doc(uid);
@@ -287,6 +309,7 @@ async function loadUserFamilyData(uid) {
         // Listen to Family Document Realtime Updates
         if (unsubscribeFirestore) unsubscribeFirestore();
         unsubscribeFirestore = famDocRef.onSnapshot(doc => {
+            hideGlobalLoader();
             if (doc.exists) {
                 const famData = doc.data();
                 authState.familyName = famData.familyName || 'Родина';
@@ -302,6 +325,7 @@ async function loadUserFamilyData(uid) {
             }
         });
     } catch (err) {
+        hideGlobalLoader();
         console.error("Помилка завантаження даних родини:", err);
     }
 }
@@ -427,6 +451,7 @@ function checkUrlKidLink() {
         state.currentRole = 'kid';
         isKidOnlyUrlMode = true;
         isKidLinkDataLoaded = false;
+        showGlobalLoader('Відкриваємо книжкову полицю дитини...');
 
         if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== "YOUR_API_KEY") {
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -437,6 +462,7 @@ function checkUrlKidLink() {
             unsubscribeFirestore = db.collection('families').doc(familyId).onSnapshot(
                 doc => {
                     isKidLinkDataLoaded = true;
+                    hideGlobalLoader();
                     if (doc.exists) {
                         const famData = doc.data();
                         state.parentPin = famData.parentPin || '1234';
@@ -457,6 +483,7 @@ function checkUrlKidLink() {
                 },
                 err => {
                     isKidLinkDataLoaded = true;
+                    hideGlobalLoader();
                     console.error("Помилка доступу за посиланням дитини:", err);
                     if (err.code === 'permission-denied') {
                         alert("⚠️ Помилка доступу до баз даних у Firebase.\n\nОновіть правила безпеки (Rules) у Firestore Console на 'allow read, write: if true;' для колекції families.");
@@ -464,6 +491,8 @@ function checkUrlKidLink() {
                     renderUI();
                 }
             );
+        } else {
+            hideGlobalLoader();
         }
     }
 }
@@ -1366,6 +1395,7 @@ function verifyParentPin() {
 }
 
 function switchRole(role) {
+    showGlobalLoader(role === 'parent' ? 'Переходимо у Батьківський режим...' : 'Переходимо у Дитячий режим...');
     if (role === 'parent') {
         isKidOnlyUrlMode = false;
     }
@@ -1377,6 +1407,7 @@ function switchRole(role) {
     if (btnKid) btnKid.classList.toggle('hidden', role === 'kid');
 
     renderUI();
+    setTimeout(() => hideGlobalLoader(), 350);
 }
 
 // TIMER LOGIC
@@ -2063,6 +2094,8 @@ async function searchGoogleBooks() {
         return;
     }
 
+    showGlobalLoader('Шукаємо книги у каталогах та мережі...');
+
     const q = rawQuery.toLowerCase();
     resultsBox.classList.remove('hidden');
     resultsBox.innerHTML = `
@@ -2267,6 +2300,7 @@ async function searchGoogleBooks() {
         </button>
     `;
     resultsBox.appendChild(manualCard);
+    hideGlobalLoader();
 }
 
 function fillBookTitleDirectly(rawTitle) {
