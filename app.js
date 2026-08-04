@@ -580,23 +580,24 @@ function renderParentChildrenList() {
         card.className = `parent-child-card ${isActive ? 'active' : ''}`;
 
         card.innerHTML = `
-            <div class="parent-child-header" onclick="selectChildInParent('${child.id}')" title="Обрати профайл ${escapeHTML(child.name)} у батьківському режимі">
-                <img src="${child.avatarUrl}" alt="${escapeHTML(child.name)}" class="child-avatar">
-                <div class="child-info" style="flex: 1;">
-                    <h3>${escapeHTML(child.name)} (${child.age || 8} років)</h3>
-                    <div class="balance-badge"><i class="fa-solid fa-coins"></i> ${(child.balance || 0).toFixed(2)} балів</div>
+            <div class="child-card-top" onclick="selectChildInParent('${child.id}')" title="Обрати профайл ${escapeHTML(child.name)} у батьківському режимі">
+                <img src="${child.avatarUrl}" alt="${escapeHTML(child.name)}" class="child-card-avatar">
+                <div class="child-card-details">
+                    <div class="child-card-name">${escapeHTML(child.name)}</div>
+                    <div class="child-card-age">${child.age || 8} років</div>
+                    <div class="child-card-balance"><i class="fa-solid fa-coins"></i> ${(child.balance || 0).toFixed(2)} балів</div>
                 </div>
-                <div class="card-icon-actions" style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
-                    <button type="button" class="copy-link-btn" style="padding: 8px 10px; border-radius: 8px;" onclick="event.stopPropagation(); copyKidShareLink('${child.id}')" title="Скопіювати унікальне посилання для ${escapeHTML(child.name)}" aria-label="Скопіювати посилання для дитини">
-                        <i class="fa-solid fa-link"></i>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-success" style="padding: 8px 10px; border-radius: 8px;" onclick="event.stopPropagation(); switchToKidForChild(event, '${child.id}')" title="Перейти у Дитячий режим для ${escapeHTML(child.name)}" aria-label="Перейти у Дитячий режим">
-                        <i class="fa-solid fa-arrow-right-to-bracket"></i>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-danger" style="padding: 8px 10px; border-radius: 8px; background: #ef4444; border-color: #ef4444;" onclick="event.stopPropagation(); deleteChildProfile('${child.id}')" title="Видалити профайл дитини ${escapeHTML(child.name)}" aria-label="Видалити профайл дитини">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </div>
+            </div>
+            <div class="child-card-actions">
+                <button type="button" class="child-action-btn btn-share-link" onclick="event.stopPropagation(); copyKidShareLink('${child.id}')" title="Скопіювати унікальне посилання для ${escapeHTML(child.name)}">
+                    <i class="fa-solid fa-link"></i> Посилання
+                </button>
+                <button type="button" class="child-action-btn btn-enter-kid" onclick="event.stopPropagation(); switchToKidForChild(event, '${child.id}')" title="Перейти у Дитячий режим для ${escapeHTML(child.name)}">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Вхід
+                </button>
+                <button type="button" class="child-action-btn btn-delete-profile" onclick="event.stopPropagation(); deleteChildProfile('${child.id}')" title="Видалити профайл ${escapeHTML(child.name)}">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
             </div>
         `;
         list.appendChild(card);
