@@ -590,10 +590,10 @@ function renderParentChildrenList() {
             </div>
             <div class="child-card-actions">
                 <button type="button" class="child-action-btn btn-share-link" onclick="event.stopPropagation(); copyKidShareLink('${child.id}')" title="Скопіювати унікальне посилання для ${escapeHTML(child.name)}">
-                    <i class="fa-solid fa-link"></i> Посилання
+                    <i class="fa-solid fa-link"></i>
                 </button>
                 <button type="button" class="child-action-btn btn-enter-kid" onclick="event.stopPropagation(); switchToKidForChild(event, '${child.id}')" title="Перейти у Дитячий режим для ${escapeHTML(child.name)}">
-                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Вхід
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
                 </button>
                 <button type="button" class="child-action-btn btn-delete-profile" onclick="event.stopPropagation(); deleteChildProfile('${child.id}')" title="Видалити профайл ${escapeHTML(child.name)}">
                     <i class="fa-solid fa-trash-can"></i>
