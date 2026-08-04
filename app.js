@@ -564,6 +564,9 @@ function renderParentChildrenList() {
                     <button type="button" class="btn btn-sm btn-success" style="padding: 8px 10px; border-radius: 8px;" onclick="event.stopPropagation(); switchToKidForChild(event, '${child.id}')" title="Перейти у Дитячий режим для ${escapeHTML(child.name)}" aria-label="Перейти у Дитячий режим">
                         <i class="fa-solid fa-arrow-right-to-bracket"></i>
                     </button>
+                    <button type="button" class="btn btn-sm btn-danger" style="padding: 8px 10px; border-radius: 8px; background: #ef4444; border-color: #ef4444;" onclick="event.stopPropagation(); deleteChildProfile('${child.id}')" title="Видалити профайл дитини ${escapeHTML(child.name)}" aria-label="Видалити профайл дитини">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 </div>
             </div>
         `;
@@ -571,6 +574,29 @@ function renderParentChildrenList() {
     });
 
     updateParentStatsCounters();
+}
+
+function deleteChildProfile(childId) {
+    if (state.currentRole !== 'parent') {
+        alert('⚠️ Видалити профайл дитини можуть лише батьки у батьківському режимі!');
+        return;
+    }
+
+    const child = state.children.find(c => String(c.id) === String(childId));
+    if (!child) return;
+
+    if (confirm(`⚠️ Ви впевнені, що хочете остаточно видалити профайл дитини "${child.name}"?\n\nУсі прочитані книги, нараховані монети та досягнення цієї дитини будуть вилучені.`)) {
+        state.children = state.children.filter(c => String(c.id) !== String(childId));
+        state.books = state.books.filter(b => String(b.childId) !== String(childId));
+
+        if (String(state.activeChildId) === String(childId)) {
+            state.activeChildId = state.children.length > 0 ? state.children[0].id : null;
+        }
+
+        saveData();
+        renderUI();
+        alert(`Профайл дитини "${child.name}" успішно видалено.`);
+    }
 }
 
 async function requestDeleteAccount() {
@@ -738,12 +764,15 @@ function renderChildrenProfilesBar() {
         bar.appendChild(btn);
     });
 
-    const addBtn = document.createElement('button');
-    addBtn.className = 'add-child-pill';
-    addBtn.title = 'Додати нового читача';
-    addBtn.onclick = () => openAddChildModal();
-    addBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
-    bar.appendChild(addBtn);
+    // Only render "+ Add Child" button if user is in parent mode
+    if (state.currentRole === 'parent') {
+        const addBtn = document.createElement('button');
+        addBtn.className = 'add-child-pill';
+        addBtn.title = 'Додати нового читача';
+        addBtn.onclick = () => openAddChildModal();
+        addBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
+        bar.appendChild(addBtn);
+    }
 }
 
 // BOOKSHELF FILTERS, SORT & VIEW MODE LOGIC
@@ -1282,8 +1311,11 @@ function renderFriendsLeaderboard() {
     });
 }
 
+let parentPinSuccessCallback = null;
+
 // PARENT PIN SECURITY LOGIC
-function requestParentAccess() {
+function requestParentAccess(onSuccess) {
+    parentPinSuccessCallback = typeof onSuccess === 'function' ? onSuccess : null;
     document.getElementById('parentPinModal').classList.add('active');
     document.getElementById('pin1').focus();
 }
@@ -1292,6 +1324,7 @@ function closePinModal() {
     document.getElementById('parentPinModal').classList.remove('active');
     document.getElementById('pinError').classList.add('hidden');
     clearPinInputs();
+    parentPinSuccessCallback = null;
 }
 
 function clearPinInputs() {
@@ -1319,8 +1352,12 @@ function movePinFocus(step) {
 function verifyParentPin() {
     const pin = ['pin1', 'pin2', 'pin3', 'pin4'].map(id => document.getElementById(id).value).join('');
     if (pin === state.parentPin) {
+        const cb = parentPinSuccessCallback;
         closePinModal();
         switchRole('parent');
+        if (typeof cb === 'function') {
+            cb();
+        }
     } else {
         document.getElementById('pinError').classList.remove('hidden');
         clearPinInputs();
@@ -1447,8 +1484,14 @@ function confirmFinishSession() {
     alert(`Сесію збережено! Твоя швидкість читання: ${speedCalc.pagesPerHour} сторінок на годину! 🚀`);
 }
 
-// NEW CHILD CREATION MODAL
+// NEW CHILD CREATION MODAL (PARENT ONLY)
 function openAddChildModal() {
+    if (state.currentRole !== 'parent') {
+        requestParentAccess(() => {
+            openAddChildModal();
+        });
+        return;
+    }
     document.getElementById('newChildNameInput').value = '';
     document.getElementById('newChildAgeInput').value = '8';
     state.newChildAvatarSeed = 'Polina';
@@ -1467,6 +1510,11 @@ function selectNewChildAvatar(el, seed) {
 }
 
 function saveNewChildProfile() {
+    if (state.currentRole !== 'parent') {
+        alert('⚠️ Створювати профайли дітей можуть лише батьки у батьківському режимі!');
+        return;
+    }
+
     const name = document.getElementById('newChildNameInput').value.trim();
     const age = parseInt(document.getElementById('newChildAgeInput').value) || 8;
 
