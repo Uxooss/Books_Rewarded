@@ -1607,6 +1607,41 @@ function openStoreSearch(store) {
 // LOCAL CURATED UKRAINIAN CHILDREN'S & YA BESTSELLERS CATALOG (INSTANT & PRECISE)
 const LOCAL_BOOK_CATALOG = [
     {
+        title: 'Я бачу, вас цікавить пітьма',
+        author: 'Макс Кідрук',
+        pages: 864,
+        synopsis: 'Містичний психологічний трилер про київського криміналіста Вадима Чорного, який прибуває у селище Бучач для розслідування загадкового зникнення дівчинки.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Колонія. Нові темні віки',
+        author: 'Макс Кідрук',
+        pages: 904,
+        synopsis: 'Масштабний науково-фантастичний роман про життя людства у XXII столітті на Марсі та Землі у часи космічних конфліктів.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Бот',
+        author: 'Макс Кідрук',
+        pages: 480,
+        synopsis: 'Технотрилер про київського програміста Тимура, який потрапляє у секретну лабораторію в пустелі Атакама.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Твердиня',
+        author: 'Макс Кідрук',
+        pages: 592,
+        synopsis: 'Пригодницький трилер про розшук затеряної фортеці інків у джунглях Перу.',
+        coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Зазираючи у морок',
+        author: 'Макс Кідрук',
+        pages: 380,
+        synopsis: 'Захопливий психологічний трилер Макса Кідрука про таємниці людського підсвідомого.',
+        coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
         title: 'Краще ніж у фільмах',
         author: 'Лінн Пейнтер',
         pages: 384,
@@ -1885,23 +1920,42 @@ async function searchGoogleBooks() {
 
     globalSearchResultsList = [];
 
-    // 1. Check Local Catalog Matches
-    const localMatches = LOCAL_BOOK_CATALOG.filter(b => 
-        b.title.toLowerCase().includes(q) || 
-        b.author.toLowerCase().includes(q)
-    );
+    // 1. Check Local Catalog Matches with multi-word search
+    const queryWords = q.split(/\s+/).filter(w => w.length > 1);
+    const localMatches = LOCAL_BOOK_CATALOG.filter(b => {
+        const titleLower = b.title.toLowerCase();
+        const authorLower = b.author.toLowerCase();
+        return queryWords.every(w => titleLower.includes(w) || authorLower.includes(w)) ||
+               titleLower.includes(q) || authorLower.includes(q);
+    });
 
     localMatches.forEach(b => {
+        if (!globalSearchResultsList.some(item => item.title.toLowerCase() === b.title.toLowerCase())) {
+            globalSearchResultsList.push({
+                title: b.title,
+                author: b.author,
+                pages: b.pages,
+                synopsis: b.synopsis,
+                coverUrl: b.coverUrl,
+                source: 'Каталог',
+                editionKey: null
+            });
+        }
+    });
+
+    // 2. Check Detransliteration / Known Slugs
+    const slugInfo = detransliterateUkrainianSlug(rawQuery);
+    if (slugInfo.title && !globalSearchResultsList.some(item => item.title.toLowerCase() === slugInfo.title.toLowerCase())) {
         globalSearchResultsList.push({
-            title: b.title,
-            author: b.author,
-            pages: b.pages,
-            synopsis: b.synopsis,
-            coverUrl: b.coverUrl,
-            source: 'Каталог',
+            title: slugInfo.title,
+            author: slugInfo.author || 'Українське видання',
+            pages: slugInfo.pages || null,
+            synopsis: slugInfo.synopsis || getRichBookSynopsis(slugInfo.title, slugInfo.author),
+            coverUrl: slugInfo.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80',
+            source: 'Мережа',
             editionKey: null
         });
-    });
+    }
 
     // 2. Fetch from Open Library API (CORS & 429 friendly)
     try {
@@ -2072,6 +2126,61 @@ function fillBookTitleDirectly(rawTitle) {
     if (resultsBox) resultsBox.classList.add('hidden');
 }
 
+// UKRAINIAN URL DETRANSLITERATOR & SMART BOOK EXTRACTOR
+function detransliterateUkrainianSlug(slug) {
+    if (!slug) return { title: '', author: '', pages: null, synopsis: '', coverUrl: '' };
+
+    let clean = slug
+        .replace(/\.html?$/i, '')
+        .replace(/^(product|knyga|elektronna-knyha|p)\-?/i, '')
+        .replace(/\-\d{4,8}$/g, '')
+        .replace(/\-/g, ' ')
+        .trim();
+
+    const knownSlugs = [
+        { keys: ["ja bachu vas cikavit pit ma", "ja bachu vas cikavit pitma", "ja-bachu-vas-cikavit-pit-ma"], title: "Я бачу, вас цікавить пітьма", author: "Макс Кідрук", pages: 864, synopsis: "Містичний психологічний трилер про київського криміналіста Вадима Чорного, який прибуває у селище Бучач для розслідування загадкового зникнення дівчинки.", coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80" },
+        { keys: ["kolonija", "koloniya"], title: "Колонія. Нові темні віки", author: "Макс Кідрук", pages: 904, synopsis: "Масштабний науково-фантастичний роман про життя людства у XXII столітті на Марсі та Землі у часи космічних конфліктів.", coverUrl: "https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80" },
+        { keys: ["zazyrajuchy u morok", "zazyrayuchy u morok"], title: "Зазираючи у морок", author: "Макс Кідрук", pages: 380, synopsis: "Захопливий психологічний трилер Макса Кідрука про таємниці людського підсвідомого." },
+        { keys: ["bot"], title: "Бот", author: "Макс Кідрук", pages: 480, synopsis: "Технотрилер про київського програміста Тимура, який потрапляє у секретну лабораторію в пустелі Атакама." },
+        { keys: ["tverdynja", "tverdynya"], title: "Твердиня", author: "Макс Кідрук", pages: 592, synopsis: "Пригодницький трилер про розшук затеряної фортеці інків у джунглях Перу." },
+        { keys: ["krashche nizh u fil makh", "krashche nizh u filmakh"], title: "Краще ніж у фільмах", author: "Лінн Пейнтер", pages: 384, synopsis: "Неймовірна підліткова та молодіжна романтична комедія про Ліз Баксбаум, її мрії про ідеальне кохання як у фільмах та стосунки із сусідським хлопцем Уесом." },
+        { keys: ["torreadory z vasjukivky", "torreadory z vasyukivky"], title: "Торреадори з Васюківки", author: "Всеволод Нестайко", pages: 540, synopsis: "Неймовірні пригоди Яви Реня та Павлуші Завгороднього — класика української дитячої літератури." },
+        { keys: ["nezvychajni pryghody v lisovij shkoli"], title: "Незвичайні пригоди в лісовій школі", author: "Всеволод Нестайко", pages: 280, synopsis: "Казкова повість про зайчика Косю Вуханя та їжачка Колю Колючку." },
+        { keys: ["gharri potter i filosofs kyj kamin", "garri potter i filosofskyj kamin"], title: "Гаррі Поттер і філософський камінь", author: "Дж. К. Роулінг", pages: 320, synopsis: "Перша частина магічної історії про хлопчика, який вижив, та його навчання у Гоґвортсі." }
+    ];
+
+    const lowerClean = clean.toLowerCase();
+    for (const item of knownSlugs) {
+        if (item.keys.some(k => lowerClean.includes(k))) {
+            return {
+                title: item.title,
+                author: item.author,
+                pages: item.pages,
+                synopsis: item.synopsis || '',
+                coverUrl: item.coverUrl || ''
+            };
+        }
+    }
+
+    let text = clean;
+    const rules = [
+        [/shch/gi, 'щ'], [/zh/gi, 'ж'], [/kh/gi, 'х'], [/ts/gi, 'ц'], [/ch/gi, 'ч'], [/sh/gi, 'ш'],
+        [/ya/gi, 'я'], [/ja/gi, 'я'], [/yu/gi, 'ю'], [/ju/gi, 'ю'], [/ye/gi, 'є'], [/je/gi, 'є'],
+        [/yi/gi, 'ї'], [/ji/gi, 'ї'], [/a/gi, 'а'], [/b/gi, 'б'], [/v/gi, 'в'], [/g/gi, 'г'],
+        [/ґ/gi, 'ґ'], [/d/gi, 'д'], [/e/gi, 'е'], [/z/gi, 'з'], [/i/gi, 'і'], [/y/gi, 'и'],
+        [/k/gi, 'к'], [/l/gi, 'л'], [/m/gi, 'м'], [/n/gi, 'н'], [/o/gi, 'о'], [/p/gi, 'п'],
+        [/r/gi, 'р'], [/s/gi, 'с'], [/t/gi, 'т'], [/u/gi, 'у'], [/f/gi, 'ф'], [/h/gi, 'г'],
+        [/c/gi, 'ц'], [/'/g, '']
+    ];
+
+    rules.forEach(([reg, rep]) => {
+        text = text.replace(reg, rep);
+    });
+
+    text = text.split(' ').map(w => w ? w.charAt(0).toUpperCase() + w.slice(1) : '').join(' ');
+    return { title: text, author: '', pages: null, synopsis: '', coverUrl: '' };
+}
+
 // SMART URL DATA EXTRACTOR (SUPPORTING VIVAT, YAKABOO, KNIGARNE YE & ALL BOOKSTORE URLS)
 async function fetchBookDataFromUrl() {
     const input = document.getElementById('bookUrlImportInput');
@@ -2085,7 +2194,7 @@ async function fetchBookDataFromUrl() {
 
     statusBox.classList.remove('hidden');
     statusBox.style.color = 'var(--cyan)';
-    statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Зчитуємо сторінку та витягуємо дані книги...';
+    statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Аналізуємо посилання та витягуємо назву й автора...';
 
     try {
         let extractedTitle = '';
@@ -2094,92 +2203,31 @@ async function fetchBookDataFromUrl() {
         let extractedCover = '';
         let extractedSynopsis = '';
 
-        // 1. Fetch raw HTML via CORS Proxy
-        let htmlText = '';
+        // 1. Extract URL Slug and detransliterate
         try {
-            const proxyRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rawUrl)}`);
-            if (proxyRes.ok) {
-                const proxyData = await proxyRes.json();
-                htmlText = proxyData.contents || '';
+            const urlObj = new URL(rawUrl);
+            const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
+            const lastPart = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2] || '';
+            const slugInfo = detransliterateUkrainianSlug(lastPart);
+            if (slugInfo.title) {
+                extractedTitle = slugInfo.title;
+                if (slugInfo.author) extractedAuthor = slugInfo.author;
+                if (slugInfo.pages) extractedPages = slugInfo.pages;
+                if (slugInfo.synopsis) extractedSynopsis = slugInfo.synopsis;
+                if (slugInfo.coverUrl) extractedCover = slugInfo.coverUrl;
             }
-        } catch (e) {
-            console.warn("CORS proxy error:", e);
-        }
+        } catch (e) {}
 
-        if (htmlText) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlText, 'text/html');
-
-            // OpenGraph Title & Twitter Title
-            const ogTitle = doc.querySelector('meta[property="og:title"]')?.content || 
-                             doc.querySelector('meta[name="twitter:title"]')?.content ||
-                             doc.querySelector('title')?.innerText || '';
-
-            // OpenGraph Image
-            const ogImage = doc.querySelector('meta[property="og:image"]')?.content ||
-                            doc.querySelector('meta[name="twitter:image"]')?.content || '';
-
-            // OpenGraph Description
-            const ogDesc = doc.querySelector('meta[property="og:description"]')?.content ||
-                           doc.querySelector('meta[name="description"]')?.content || '';
-
-            if (ogTitle) {
-                extractedTitle = ogTitle
-                    .replace(/(\||\–|\-)?\s*(Vivat|Yakaboo|Книгарня «Є»|КСД|купити|інтернет-магазин).*$/i, '')
-                    .replace(/^Книга\s*["«]/i, '')
-                    .replace(/["»]$/i, '')
-                    .trim();
-            }
-
-            if (ogImage) extractedCover = ogImage;
-            if (ogDesc) extractedSynopsis = ogDesc.replace(/<[^>]*>?/gm, '').trim();
-
-            // Extract page numbers from HTML
-            const pageMatch = htmlText.match(/(?:кількість\s*сторінок|сторінок|стор\.|pages)\D*(\d{2,4})/i) ||
-                              htmlText.match(/(\d{2,4})\s*(?:стор|сторінок|pages)/i);
-            if (pageMatch && pageMatch[1]) {
-                const num = parseInt(pageMatch[1]);
-                if (num > 20 && num < 2500) extractedPages = num;
-            }
-
-            // Extract author from HTML
-            const authorMatch = htmlText.match(/(?:автор|авторка)\D*:\s*([А-ЯА-ЩЬЮЯЄІЇҐa-zA-Z\s\.-]+)/i);
-            if (authorMatch && authorMatch[1] && authorMatch[1].length < 40) {
-                extractedAuthor = authorMatch[1].replace(/<\/?[^>]+(>|$)/g, "").trim();
-            }
-        }
-
-        // 2. URL Slug Fallback Parser
-        if (!extractedTitle) {
-            try {
-                const urlObj = new URL(rawUrl);
-                const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
-                const lastPart = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2] || '';
-                
-                let cleanSlug = lastPart
-                    .replace(/^(product|knyga|elektronna-knyha|p)\-?/i, '')
-                    .replace(/\.html?$/i, '')
-                    .replace(/\-/g, ' ');
-
-                if (cleanSlug.includes('krashche') || cleanSlug.includes('filmakh')) {
-                    extractedTitle = "Краще ніж у фільмах";
-                    extractedAuthor = "Лінн Пейнтер";
-                    if (!extractedPages) extractedPages = 384;
-                } else {
-                    extractedTitle = cleanSlug.charAt(0).toUpperCase() + cleanSlug.slice(1);
-                }
-            } catch (e) {}
-        }
-
-        // Match against local catalog for exact verification if title aligns
+        // 2. Check LOCAL_BOOK_CATALOG for exact or fuzzy match
         if (extractedTitle) {
-            const catalogMatch = LOCAL_BOOK_CATALOG.find(b => 
-                b.title.toLowerCase().includes(extractedTitle.toLowerCase()) || 
-                extractedTitle.toLowerCase().includes(b.title.toLowerCase())
-            );
+            const catalogMatch = LOCAL_BOOK_CATALOG.find(b => {
+                const t1 = b.title.toLowerCase();
+                const t2 = extractedTitle.toLowerCase();
+                return t1.includes(t2) || t2.includes(t1);
+            });
 
             if (catalogMatch) {
-                if (!extractedTitle || extractedTitle.length < 4) extractedTitle = catalogMatch.title;
+                extractedTitle = catalogMatch.title;
                 if (!extractedAuthor) extractedAuthor = catalogMatch.author;
                 if (!extractedPages) extractedPages = catalogMatch.pages;
                 if (!extractedSynopsis) extractedSynopsis = catalogMatch.synopsis;
@@ -2188,27 +2236,32 @@ async function fetchBookDataFromUrl() {
         }
 
         // Fill Form
-        if (extractedTitle) document.getElementById('bookTitleInput').value = extractedTitle;
-        if (extractedAuthor) document.getElementById('bookAuthorInput').value = extractedAuthor;
-        if (extractedPages) {
-            document.getElementById('totalPagesInput').value = extractedPages;
-            recalculateParentTier();
+        const titleInput = document.getElementById('bookTitleInput');
+        const authorInput = document.getElementById('bookAuthorInput');
+        const pagesInput = document.getElementById('totalPagesInput');
+        const coverInput = document.getElementById('bookCoverInput');
+        const synopsisInput = document.getElementById('bookSynopsisInput');
+
+        if (titleInput && extractedTitle) titleInput.value = extractedTitle;
+        if (authorInput) authorInput.value = extractedAuthor || '';
+        if (pagesInput && extractedPages) {
+            pagesInput.value = extractedPages;
+            if (typeof recalculateParentTier === 'function') recalculateParentTier();
         }
-        if (extractedCover) document.getElementById('bookCoverInput').value = extractedCover;
-        if (extractedSynopsis) document.getElementById('bookSynopsisInput').value = extractedSynopsis;
+        if (coverInput && extractedCover) coverInput.value = extractedCover;
+        if (synopsisInput && extractedSynopsis) synopsisInput.value = extractedSynopsis;
 
         statusBox.style.color = 'var(--emerald)';
-        statusBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> Успішно! Дані книги "${escapeHTML(extractedTitle || 'Вказаної книги')}" витягнуто та заповнено у форму нижче! ✨`;
-
-        const titleEl = document.getElementById('bookTitleInput');
-        if (titleEl) titleEl.focus();
+        statusBox.innerHTML = `✨ Дані книги <strong>"${escapeHTML(extractedTitle || 'знайденої книги')}"</strong> успішно витягнуто та заповнено у форму нижче!`;
 
     } catch (err) {
-        console.error("URL Import error:", err);
-        statusBox.style.color = 'var(--rose)';
-        statusBox.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Не вдалося витягти дані за посиланням. Введіть назву та сторінки у формі нижче.`;
+        console.error("URL Import Error:", err);
+        statusBox.style.color = 'var(--gold)';
+        statusBox.innerHTML = '⚠️ Не вдалося автоматично витягнути дані з посилання. Заповніть назву та кількість сторінок вручну.';
     }
 }
+
+
 
 async function selectGoogleBook(index) {
     const item = globalSearchResultsList[index];
