@@ -3,7 +3,7 @@
 // ==========================================
 // ⚠️ ДЛЯ РОБОТИ В ХМАРІ ВКАЖІТЬ КЛЮЧІ ВАШОГО FIREBASE ПРОЄКТУ (console.firebase.google.com):
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
+    apiKey: "AIzaSyCkac8yMY1R1OeSKT6VzfwmlnZNMOHfCpE",
     authDomain: "books-rewarded.firebaseapp.com",
     projectId: "books-rewarded",
     storageBucket: "books-rewarded.firebasestorage.app",
@@ -600,6 +600,11 @@ function renderUI() {
         if (authView) authView.classList.remove('active');
         if (authHeaderInfo) authHeaderInfo.classList.add('hidden');
 
+        const btnParent = document.getElementById('btnRoleParent');
+        const btnKid = document.getElementById('btnRoleKid');
+        if (btnParent) btnParent.classList.remove('hidden');
+        if (btnKid) btnKid.classList.add('hidden');
+
         if (state.children.length === 0) {
             if (noChildView) noChildView.classList.add('active');
             if (kidView) kidView.classList.remove('active');
@@ -659,7 +664,13 @@ function renderUI() {
 
     const activeChild = getActiveChild();
 
+    const btnParent = document.getElementById('btnRoleParent');
+    const btnKid = document.getElementById('btnRoleKid');
+
     if (state.currentRole === 'kid') {
+        if (btnParent) btnParent.classList.remove('hidden');
+        if (btnKid) btnKid.classList.add('hidden');
+
         parentView.classList.remove('active');
         kidView.classList.add('active');
 
@@ -675,6 +686,9 @@ function renderUI() {
             showKidSubTab(state.activeKidSubTab || 'shelf');
         }
     } else {
+        if (btnParent) btnParent.classList.add('hidden');
+        if (btnKid) btnKid.classList.remove('hidden');
+
         kidView.classList.remove('active');
         parentView.classList.add('active');
 
@@ -1293,6 +1307,9 @@ function verifyParentPin() {
 }
 
 function switchRole(role) {
+    if (role === 'parent') {
+        isKidOnlyUrlMode = false;
+    }
     state.currentRole = role;
 
     const btnParent = document.getElementById('btnRoleParent');
