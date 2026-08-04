@@ -1546,14 +1546,68 @@ function renderNotifications() {
 }
 
 // ADD BOOK MODAL & GOOGLE BOOKS API SEARCH
+function resetAddBookModalForm() {
+    const textFields = [
+        'searchQuery',
+        'bookUrlImportInput',
+        'bookTitleInput',
+        'bookAuthorInput',
+        'bookCoverInput',
+        'bookSynopsisInput'
+    ];
+
+    textFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    const totalPages = document.getElementById('totalPagesInput');
+    if (totalPages) totalPages.value = '120';
+
+    const rewardPerPage = document.getElementById('rewardPerPageInput');
+    if (rewardPerPage) rewardPerPage.value = '2.5';
+
+    const dailyNorm = document.getElementById('dailyNormInput');
+    if (dailyNorm) dailyNorm.value = '12';
+
+    const startPage = document.getElementById('startPageInput');
+    if (startPage) startPage.value = '1';
+
+    const dropdown = document.getElementById('allStoresDropdown');
+    if (dropdown) dropdown.value = '';
+
+    const resultsBox = document.getElementById('searchResultsBox');
+    if (resultsBox) {
+        resultsBox.classList.add('hidden');
+        resultsBox.innerHTML = '';
+    }
+
+    const urlStatus = document.getElementById('urlImportStatus');
+    if (urlStatus) {
+        urlStatus.classList.add('hidden');
+        urlStatus.innerHTML = '';
+    }
+
+    if (typeof recalculateParentTier === 'function') {
+        recalculateParentTier();
+    }
+}
+
 function openAddBookModal() {
-    document.getElementById('addBookModal').classList.add('active');
-    document.getElementById('searchResultsBox').classList.add('hidden');
-    recalculateParentTier();
+    resetAddBookModalForm();
+    const modal = document.getElementById('addBookModal');
+    if (modal) modal.classList.add('active');
+    
+    setTimeout(() => {
+        const searchInput = document.getElementById('searchQuery');
+        if (searchInput) searchInput.focus();
+    }, 50);
 }
 
 function closeAddBookModal() {
-    document.getElementById('addBookModal').classList.remove('active');
+    const modal = document.getElementById('addBookModal');
+    if (modal) modal.classList.remove('active');
+    resetAddBookModalForm();
 }
 
 function recalculateParentTier() {
