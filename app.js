@@ -3,7 +3,7 @@
 // ==========================================
 // ⚠️ ДЛЯ РОБОТИ В ХМАРІ ВКАЖІТЬ КЛЮЧІ ВАШОГО FIREBASE ПРОЄКТУ (console.firebase.google.com):
 const firebaseConfig = {
-    apiKey: "AIzaSyCkac8yMY1R1OeSKT6VzfwmlnZNMOHfCpE",
+    apiKey: "YOUR_API_KEY",
     authDomain: "books-rewarded.firebaseapp.com",
     projectId: "books-rewarded",
     storageBucket: "books-rewarded.firebasestorage.app",
@@ -469,9 +469,44 @@ function copyKidShareLink(childId) {
     }
 }
 
-function setActiveChildFromParent(childId) {
+function selectChildInParent(childId) {
     state.activeChildId = childId;
+    try {
+        localStorage.setItem('lastActiveChildId', childId);
+    } catch (e) {}
+    renderUI();
+}
+
+function switchToKidForChild(event, childId) {
+    if (event) event.stopPropagation();
+    state.activeChildId = childId;
+    try {
+        localStorage.setItem('lastActiveChildId', childId);
+    } catch (e) {}
     switchRole('kid');
+}
+
+function updateParentStatsCounters() {
+    const elArchived = document.getElementById('archivedBooksCount');
+    const elActive = document.getElementById('activeBooksCount');
+    const elPending = document.getElementById('pendingApprovalCount');
+
+    if (!elArchived || !elActive || !elPending) return;
+
+    const currentChildId = state.activeChildId;
+    
+    // String comparison for childId to prevent any type mismatches
+    const childBooks = currentChildId 
+        ? state.books.filter(b => String(b.childId) === String(currentChildId))
+        : state.books;
+
+    const archivedCount = childBooks.filter(b => b.status === 'archived' || b.status === 'completed').length;
+    const activeCount = childBooks.filter(b => b.status === 'active' || b.status === 'planned' || b.status === 'reading').length;
+    const pendingCount = childBooks.filter(b => b.status === 'quiz_pending').length;
+
+    elArchived.innerText = String(archivedCount);
+    elActive.innerText = String(activeCount);
+    elPending.innerText = String(pendingCount);
 }
 
 function renderParentChildrenList() {
@@ -481,29 +516,46 @@ function renderParentChildrenList() {
 
     if (state.children.length === 0) {
         list.innerHTML = '<p style="font-size:0.85rem; color:#94a3b8; text-align:center; padding:10px 0;">Поки немає доданих дітей. Натисніть "+ Дитина".</p>';
+        updateParentStatsCounters();
         return;
+    }
+
+    // Preserve previously selected child if valid
+    const savedChildId = localStorage.getItem('lastActiveChildId');
+    if (savedChildId && state.children.some(c => String(c.id) === String(savedChildId)) && (!state.activeChildId || !state.children.some(c => String(c.id) === String(state.activeChildId)))) {
+        state.activeChildId = savedChildId;
+    }
+
+    if (!state.activeChildId && state.children.length > 0) {
+        state.activeChildId = state.children[0].id;
     }
 
     state.children.forEach(child => {
         const card = document.createElement('div');
-        const isActive = child.id === state.activeChildId;
+        const isActive = String(child.id) === String(state.activeChildId);
         card.className = `parent-child-card ${isActive ? 'active' : ''}`;
 
         card.innerHTML = `
-            <div class="parent-child-header" onclick="setActiveChildFromParent('${child.id}')">
+            <div class="parent-child-header" onclick="selectChildInParent('${child.id}')" title="Обрати профайл ${escapeHTML(child.name)} у батьківському режимі">
                 <img src="${child.avatarUrl}" alt="${escapeHTML(child.name)}" class="child-avatar">
-                <div class="child-info">
+                <div class="child-info" style="flex: 1;">
                     <h3>${escapeHTML(child.name)} (${child.age || 8} років)</h3>
                     <div class="balance-badge"><i class="fa-solid fa-coins"></i> ${(child.balance || 0).toFixed(2)} балів</div>
                 </div>
-                <i class="fa-solid fa-arrow-right-to-bracket child-card-go-icon" title="Перейти до дитячого дашборду"></i>
+                <div class="card-icon-actions" style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+                    <button type="button" class="copy-link-btn" style="padding: 8px 10px; border-radius: 8px;" onclick="event.stopPropagation(); copyKidShareLink('${child.id}')" title="Скопіювати унікальне посилання для ${escapeHTML(child.name)}" aria-label="Скопіювати посилання для дитини">
+                        <i class="fa-solid fa-link"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-success" style="padding: 8px 10px; border-radius: 8px;" onclick="event.stopPropagation(); switchToKidForChild(event, '${child.id}')" title="Перейти у Дитячий режим для ${escapeHTML(child.name)}" aria-label="Перейти у Дитячий режим">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    </button>
+                </div>
             </div>
-            <button class="copy-link-btn" onclick="copyKidShareLink('${child.id}')" title="Скопіювати унікальне посилання для дитини">
-                <i class="fa-solid fa-link"></i> Скопіювати посилання для ${escapeHTML(child.name)}
-            </button>
         `;
         list.appendChild(card);
     });
+
+    updateParentStatsCounters();
 }
 
 async function requestDeleteAccount() {
@@ -947,6 +999,8 @@ function renderParentBooks() {
     } else {
         approvalBanner.style.display = 'none';
     }
+
+    updateParentStatsCounters();
 
     if (activeBooks.length === 0) {
         grid.innerHTML = '<p class="text-parent-muted">Немає активних або запланованих книжок. Натисніть "+ Додати нову книгу".</p>';
