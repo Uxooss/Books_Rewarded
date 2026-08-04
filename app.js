@@ -1608,10 +1608,24 @@ function openStoreSearch(store) {
 const LOCAL_BOOK_CATALOG = [
     {
         title: 'Я бачу, вас цікавить пітьма',
-        author: 'Макс Кідрук',
-        pages: 864,
-        synopsis: 'Містичний психологічний трилер про київського криміналіста Вадима Чорного, який прибуває у селище Бучач для розслідування загадкового зникнення дівчинки.',
+        author: 'Ілларіон Павлюк',
+        pages: 664,
+        synopsis: 'Містичний психологічний детективний трилер про київського кримінального психолога Вадима Чорного, який прибуває у зникле в часі селище Бучач для розслідування загадкового зникнення маленької дівчинки.',
         coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Танець недоумка',
+        author: 'Ілларіон Павлюк',
+        pages: 680,
+        synopsis: 'Захопливий психологічний космічний детектив про біолога Гіля, який погоджується на ризиковану наукову експедицію на далеку планету Іш-Чель.',
+        coverUrl: 'https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80'
+    },
+    {
+        title: 'Білий попіл',
+        author: 'Ілларіон Павлюк',
+        pages: 352,
+        synopsis: 'Атмосферний трилер у стилі тривожного детективу, дія якого розгортається на хуторі серед засніжених українських степів XIX століття.',
+        coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80'
     },
     {
         title: 'Колонія. Нові темні віки',
@@ -2138,7 +2152,9 @@ function detransliterateUkrainianSlug(slug) {
         .trim();
 
     const knownSlugs = [
-        { keys: ["ja bachu vas cikavit pit ma", "ja bachu vas cikavit pitma", "ja-bachu-vas-cikavit-pit-ma"], title: "Я бачу, вас цікавить пітьма", author: "Макс Кідрук", pages: 864, synopsis: "Містичний психологічний трилер про київського криміналіста Вадима Чорного, який прибуває у селище Бучач для розслідування загадкового зникнення дівчинки.", coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80" },
+        { keys: ["ja bachu vas cikavit pit ma", "ja bachu vas cikavit pitma", "ja-bachu-vas-cikavit-pit-ma"], title: "Я бачу, вас цікавить пітьма", author: "Ілларіон Павлюк", pages: 664, synopsis: "Містичний психологічний детективний трилер про київського кримінального психолога Вадима Чорного, який прибуває у зникле в часі селище Бучач для розслідування загадкового зникнення маленької дівчинки.", coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80" },
+        { keys: ["tanets nedumka", "tanec nedumka", "tanets nedumka"], title: "Танець недоумка", author: "Ілларіон Павлюк", pages: 680, synopsis: "Захопливий психологічний космічний детектив про біолога Гіля." },
+        { keys: ["bilyj popil", "bilyi popil"], title: "Білий попіл", author: "Ілларіон Павлюк", pages: 352, synopsis: "Атмосферний трилер у стилі тривожного детективу." },
         { keys: ["kolonija", "koloniya"], title: "Колонія. Нові темні віки", author: "Макс Кідрук", pages: 904, synopsis: "Масштабний науково-фантастичний роман про життя людства у XXII столітті на Марсі та Землі у часи космічних конфліктів.", coverUrl: "https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80" },
         { keys: ["zazyrajuchy u morok", "zazyrayuchy u morok"], title: "Зазираючи у морок", author: "Макс Кідрук", pages: 380, synopsis: "Захопливий психологічний трилер Макса Кідрука про таємниці людського підсвідомого." },
         { keys: ["bot"], title: "Бот", author: "Макс Кідрук", pages: 480, synopsis: "Технотрилер про київського програміста Тимура, який потрапляє у секретну лабораторію в пустелі Атакама." },
