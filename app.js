@@ -2146,23 +2146,26 @@ function detransliterateUkrainianSlug(slug) {
 
     let clean = slug
         .replace(/\.html?$/i, '')
-        .replace(/^(product|knyga|elektronna-knyha|p)\-?/i, '')
+        .replace(/^(product|catalog|suchasna-proza|fantastyka|zarubizhna-literatura|elektronna-knyha|p)\-?/i, '')
         .replace(/\-\d{4,8}$/g, '')
         .replace(/\-/g, ' ')
         .trim();
 
     const knownSlugs = [
-        { keys: ["ja bachu vas cikavit pit ma", "ja bachu vas cikavit pitma", "ja-bachu-vas-cikavit-pit-ma"], title: "Я бачу, вас цікавить пітьма", author: "Ілларіон Павлюк", pages: 664, synopsis: "Містичний психологічний детективний трилер про київського кримінального психолога Вадима Чорного, який прибуває у зникле в часі селище Бучач для розслідування загадкового зникнення маленької дівчинки.", coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80" },
-        { keys: ["tanets nedumka", "tanec nedumka", "tanets nedumka"], title: "Танець недоумка", author: "Ілларіон Павлюк", pages: 680, synopsis: "Захопливий психологічний космічний детектив про біолога Гіля." },
-        { keys: ["bilyj popil", "bilyi popil"], title: "Білий попіл", author: "Ілларіон Павлюк", pages: 352, synopsis: "Атмосферний трилер у стилі тривожного детективу." },
-        { keys: ["kolonija", "koloniya"], title: "Колонія. Нові темні віки", author: "Макс Кідрук", pages: 904, synopsis: "Масштабний науково-фантастичний роман про життя людства у XXII столітті на Марсі та Землі у часи космічних конфліктів.", coverUrl: "https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80" },
+        { keys: ["ja bachu vas cikavit pit ma", "ja bachu vas cikavit pitma", "ja-bachu-vas-cikavit-pit-ma", "ya bachu vas tsikavyt pitma", "ya-bachu-vas-tsikavyt-pitma"], title: "Я бачу, вас цікавить пітьма", author: "Ілларіон Павлюк", pages: 664, synopsis: "Містичний психологічний детективний трилер про київського кримінального психолога Вадима Чорного, який прибуває у зникле в часі селище Бучач для розслідування загадкового зникнення маленької дівчинки.", coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80" },
+        { keys: ["tanets nedumka", "tanec nedumka", "tanets-nedumka"], title: "Танець недоумка", author: "Ілларіон Павлюк", pages: 680, synopsis: "Захопливий психологічний космічний детектив про біолога Гіля." },
+        { keys: ["bilyj popil", "bilyi popil", "bilyy popil"], title: "Білий попіл", author: "Ілларіон Павлюк", pages: 352, synopsis: "Атмосферний трилер у стилі тривожного детективу." },
+        { keys: ["kolonija", "koloniya", "koloniya novi temni viki", "koloniya novi temni viky"], title: "Колонія. Нові темні віки", author: "Макс Кідрук", pages: 904, synopsis: "Масштабний науково-фантастичний роман про життя людства у XXII столітті на Марсі та Землі у часи космічних конфліктів.", coverUrl: "https://images.unsplash.com/photo-1626618012641-bfbca5a31239?auto=format&fit=crop&w=300&q=80" },
         { keys: ["zazyrajuchy u morok", "zazyrayuchy u morok"], title: "Зазираючи у морок", author: "Макс Кідрук", pages: 380, synopsis: "Захопливий психологічний трилер Макса Кідрука про таємниці людського підсвідомого." },
         { keys: ["bot"], title: "Бот", author: "Макс Кідрук", pages: 480, synopsis: "Технотрилер про київського програміста Тимура, який потрапляє у секретну лабораторію в пустелі Атакама." },
         { keys: ["tverdynja", "tverdynya"], title: "Твердиня", author: "Макс Кідрук", pages: 592, synopsis: "Пригодницький трилер про розшук затеряної фортеці інків у джунглях Перу." },
-        { keys: ["krashche nizh u fil makh", "krashche nizh u filmakh"], title: "Краще ніж у фільмах", author: "Лінн Пейнтер", pages: 384, synopsis: "Неймовірна підліткова та молодіжна романтична комедія про Ліз Баксбаум, її мрії про ідеальне кохання як у фільмах та стосунки із сусідським хлопцем Уесом." },
-        { keys: ["torreadory z vasjukivky", "torreadory z vasyukivky"], title: "Торреадори з Васюківки", author: "Всеволод Нестайко", pages: 540, synopsis: "Неймовірні пригоди Яви Реня та Павлуші Завгороднього — класика української дитячої літератури." },
-        { keys: ["nezvychajni pryghody v lisovij shkoli"], title: "Незвичайні пригоди в лісовій школі", author: "Всеволод Нестайко", pages: 280, synopsis: "Казкова повість про зайчика Косю Вуханя та їжачка Колю Колючку." },
-        { keys: ["gharri potter i filosofs kyj kamin", "garri potter i filosofskyj kamin"], title: "Гаррі Поттер і філософський камінь", author: "Дж. К. Роулінг", pages: 320, synopsis: "Перша частина магічної історії про хлопчика, який вижив, та його навчання у Гоґвортсі." }
+        { keys: ["krashche nizh u fil makh", "krashche nizh u filmakh", "krashche nizh u fil makh"], title: "Краще ніж у фільмах", author: "Лінн Пейнтер", pages: 384, synopsis: "Неймовірна підліткова та молодіжна романтична комедія про Ліз Баксбаум, її мрії про ідеальне кохання як у фільмах та стосунки із сусідським хлопцем Уесом." },
+        { keys: ["hipoteza kokhannya", "hipoteza koxannya"], title: "Гіпотеза кохання", author: "Алі Гейзелвуд", pages: 384, synopsis: "Бестселер про аспірантку Олівію, яка фіктивно починає зустрічатися з молодим і суворим професором." },
+        { keys: ["dvir shypiv i troyand"], title: "Двір шипів і троянд", author: "Сара Дж. Маас", pages: 480, synopsis: "Захопливе фентезі про 19-річну мисливицю Фейру, яка потрапляє до чарівного краю фейрі." },
+        { keys: ["zhorstokyy prynts", "zhorstokyy-prynts", "zhorstokyj prync"], title: "Жорстокий принц", author: "Голлі Блек", pages: 416, synopsis: "Смертна дівчина Джуд протистоїть підступним та прекрасним фейрі в Ельфгеймі." },
+        { keys: ["torreadory z vasjukivky", "torreadory z vasyukivky", "torreadory-z-vasyukivky"], title: "Торреадори з Васюківки", author: "Всеволод Нестайко", pages: 540, synopsis: "Неймовірні пригоди Яви Реня та Павлуші Завгороднього — класика української дитячої літератури." },
+        { keys: ["nezvychajni pryghody v lisovij shkoli", "nezvychayni pryghody v lisoviy shkoli"], title: "Незвичайні пригоди в лісовій школі", author: "Всеволод Нестайко", pages: 280, synopsis: "Казкова повість про зайчика Косю Вуханя та їжачка Колю Колючку." },
+        { keys: ["gharri potter i filosofs kyj kamin", "garri potter i filosofskyj kamin", "harri potter i filosofskyy kamin"], title: "Гаррі Поттер і філософський камінь", author: "Дж. К. Роулінг", pages: 320, synopsis: "Перша частина магічної історії про хлопчика, який вижив, та його навчання у Гоґвортсі." }
     ];
 
     const lowerClean = clean.toLowerCase();
@@ -2182,11 +2185,11 @@ function detransliterateUkrainianSlug(slug) {
     const rules = [
         [/shch/gi, 'щ'], [/zh/gi, 'ж'], [/kh/gi, 'х'], [/ts/gi, 'ц'], [/ch/gi, 'ч'], [/sh/gi, 'ш'],
         [/ya/gi, 'я'], [/ja/gi, 'я'], [/yu/gi, 'ю'], [/ju/gi, 'ю'], [/ye/gi, 'є'], [/je/gi, 'є'],
-        [/yi/gi, 'ї'], [/ji/gi, 'ї'], [/a/gi, 'а'], [/b/gi, 'б'], [/v/gi, 'в'], [/g/gi, 'г'],
-        [/ґ/gi, 'ґ'], [/d/gi, 'д'], [/e/gi, 'е'], [/z/gi, 'з'], [/i/gi, 'і'], [/y/gi, 'и'],
-        [/k/gi, 'к'], [/l/gi, 'л'], [/m/gi, 'м'], [/n/gi, 'н'], [/o/gi, 'о'], [/p/gi, 'п'],
-        [/r/gi, 'р'], [/s/gi, 'с'], [/t/gi, 'т'], [/u/gi, 'у'], [/f/gi, 'ф'], [/h/gi, 'г'],
-        [/c/gi, 'ц'], [/'/g, '']
+        [/yi/gi, 'ї'], [/ji/gi, 'ї'], [/yy/gi, 'ій'], [/ii/gi, 'ій'],
+        [/a/gi, 'а'], [/b/gi, 'б'], [/v/gi, 'в'], [/g/gi, 'г'], [/ґ/gi, 'ґ'], [/d/gi, 'д'], [/e/gi, 'е'],
+        [/z/gi, 'з'], [/i/gi, 'і'], [/y/gi, 'и'], [/k/gi, 'к'], [/l/gi, 'л'], [/m/gi, 'м'], [/n/gi, 'н'],
+        [/o/gi, 'о'], [/p/gi, 'п'], [/r/gi, 'р'], [/s/gi, 'с'], [/t/gi, 'т'], [/u/gi, 'у'], [/f/gi, 'ф'],
+        [/h/gi, 'г'], [/c/gi, 'ц'], [/'/g, '']
     ];
 
     rules.forEach(([reg, rep]) => {
